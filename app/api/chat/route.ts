@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
+const MODEL = "gemini-3.1-flash-lite";
+
 export async function POST(req: NextRequest) {
   try {
     const { productSlug, history } = await req.json();
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ reply: "Shop chưa bật tư vấn AI, bạn liên hệ hotline giúp shop nhé." });
     }
@@ -23,33 +25,37 @@ Mô tả: ${product.description}
 Màu: ${product.colors.join(", ") || "không có tùy chọn màu"}
 Size: ${product.sizes.join(", ") || "không có tùy chọn size"}`;
 
-    const messages = Array.isArray(history) && history.length > 0
-      ? history.slice(-10)
-      : [{ role: "user", content: "Xin chào" }];
+    const rawHistory: { role: string; content: string }[] =
+      Array.isArray(history) && history.length > 0 ? history.slice(-10) : [{ role: "user", content: "Xin chào" }];
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 300,
-        system: systemPrompt,
-        messages
-      })
-    });
+    const contents = rawHistory.map((m) => ({
+      role: m.role === "user" ? "user" : "model",
+      parts: [{ text: m.content }]
+    }));
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: { maxOutputTokens: 300 }
+        })
+      }
+    );
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("Anthropic API error:", errText);
+      console.error("Gemini API error:", errText);
       return NextResponse.json({ reply: "Mình đang gặp trục trặc, bạn thử lại sau ít phút nhé." });
     }
 
     const data = await res.json();
-    const reply = data.content?.find((c: any) => c.type === "text")?.text || "Bạn hỏi lại giúp mình nhé.";
+    const reply =
+      data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ||
+      "Bạn hỏi lại giúp mình nhé.";
 
     return NextResponse.json({ reply });
   } catch (err) {
