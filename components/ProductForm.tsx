@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Variant = { name: string; price: number };
+type Attribute = { name: string; values: string };
+type Combo = { qty: string; price: string };
 
 type Product = {
   id?: string;
@@ -14,16 +15,10 @@ type Product = {
   description?: string;
   images?: string[];
   video?: string | null;
-  colors?: string[];
-  sizes?: string[];
-  variants?: Variant[] | unknown;
+  attributes?: { name: string; values: string[] }[];
+  variants?: { qty: number; price: number }[];
   active?: boolean;
 };
-
-function variantsToText(v: unknown): string {
-  if (!Array.isArray(v)) return "";
-  return v.map((x: Variant) => `${x.name} | ${x.price}`).join("\n");
-}
 
 export default function ProductForm({ product }: { product?: Product }) {
   const router = useRouter();
@@ -31,15 +26,56 @@ export default function ProductForm({ product }: { product?: Product }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const [attrs, setAttrs] = useState<Attribute[]>(
+    product?.attributes?.length
+      ? product.attributes.map((a) => ({ name: a.name, values: a.values.join(", ") }))
+      : []
+  );
+  const [combos, setCombos] = useState<Combo[]>(
+    product?.variants?.length
+      ? product.variants.map((v) => ({ qty: String(v.qty), price: String(v.price) }))
+      : []
+  );
+
+  function updateAttr(i: number, field: "name" | "values", value: string) {
+    setAttrs((prev) => prev.map((a, idx) => (idx === i ? { ...a, [field]: value } : a)));
+  }
+  function removeAttr(i: number) {
+    setAttrs((prev) => prev.filter((_, idx) => idx !== i));
+  }
+  function updateCombo(i: number, field: "qty" | "price", value: string) {
+    setCombos((prev) => prev.map((c, idx) => (idx === i ? { ...c, [field]: value } : c)));
+  }
+  function removeCombo(i: number) {
+    setCombos((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     setError("");
 
     const form = e.currentTarget;
-    const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
-    // @ts-ignore
-    data.active = form.active.checked;
+    const fd = Object.fromEntries(new FormData(form)) as Record<string, string>;
+
+    const payload = {
+      name: fd.name,
+      slug: fd.slug,
+      category: fd.category,
+      price: fd.price,
+      oldPrice: fd.oldPrice,
+      description: fd.description,
+      images: fd.images,
+      video: fd.video,
+      // @ts-ignore
+      active: form.active.checked,
+      attributes: attrs
+        .map((a) => ({ name: a.name.trim(), values: a.values.split(",").map((v) => v.trim()).filter(Boolean) }))
+        .filter((a) => a.name && a.values.length > 0),
+      variants: combos
+        .map((c) => ({ qty: Number(c.qty), price: Number(c.price) }))
+        .filter((c) => c.qty > 0 && c.price > 0)
+    };
 
     const url = isEdit ? `/api/admin/products/${product!.id}` : "/api/admin/products";
     const method = isEdit ? "PUT" : "POST";
@@ -47,7 +83,7 @@ export default function ProductForm({ product }: { product?: Product }) {
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
+      body: JSON.stringify(payload)
     });
 
     setSaving(false);
@@ -86,7 +122,7 @@ export default function ProductForm({ product }: { product?: Product }) {
         </div>
       </div>
       <p className="note" style={{ textAlign: "left" }}>
-        Nếu sản phẩm có nhiều combo giá khác nhau (điền ở ô bên dưới), giá này chỉ dùng làm giá hiển thị mặc định.
+        Giá này chỉ dùng khi sản phẩm KHÔNG có combo (mục bên dưới). Nếu có combo, khách sẽ chọn giá theo combo.
       </p>
 
       <label>Mô tả sản phẩm</label>
@@ -100,38 +136,69 @@ export default function ProductForm({ product }: { product?: Product }) {
         placeholder="https://i.postimg.cc/anh1.jpg, https://i.postimg.cc/anh2.jpg"
       />
       <p className="note" style={{ textAlign: "left" }}>
-        Upload ảnh tại postimages.org (miễn phí, không cần tài khoản) rồi copy link "Direct link" dán vào đây. Khách có thể vuốt qua lại giữa các ảnh.
+        Upload ảnh tại postimages.org rồi copy link "Direct link" dán vào đây. Khách vuốt qua lại giữa các ảnh.
       </p>
 
       <label>Link video ngắn (không bắt buộc)</label>
       <input name="video" defaultValue={product?.video || ""} placeholder="https://.../video.mp4" />
-      <p className="note" style={{ textAlign: "left" }}>
-        Dán link file video đuôi .mp4 (upload tại streamable.com hoặc tương tự, lấy link trực tiếp). Video sẽ hiện ở đầu dải ảnh, khách vuốt qua xem.
+
+      {/* Thuộc tính tự đặt tên */}
+      <label>Thuộc tính (không bắt buộc)</label>
+      <p className="note" style={{ textAlign: "left", marginTop: 0 }}>
+        Tự đặt tên thuộc tính (Màu, Kích thước, Loại vải...), khách sẽ chọn 1 giá trị mỗi thuộc tính khi đặt hàng.
       </p>
-
-      <div className="row">
-        <div>
-          <label>Màu (cách nhau bằng dấu phẩy, để trống nếu không có)</label>
-          <input name="colors" defaultValue={product?.colors?.join(", ")} placeholder="Trắng, Đen" />
+      {attrs.map((a, i) => (
+        <div key={i} className="row" style={{ alignItems: "flex-end" }}>
+          <div>
+            <label>Tên thuộc tính</label>
+            <input value={a.name} onChange={(e) => updateAttr(i, "name", e.target.value)} placeholder="Màu sắc" />
+          </div>
+          <div>
+            <label>Giá trị (cách nhau bằng dấu phẩy)</label>
+            <input value={a.values} onChange={(e) => updateAttr(i, "values", e.target.value)} placeholder="Đen, Trắng, Xanh" />
+          </div>
+          <button type="button" onClick={() => removeAttr(i)} className="btn btn-danger" style={{ marginBottom: 14 }}>
+            Xóa
+          </button>
         </div>
-        <div>
-          <label>Size (để trống nếu không có)</label>
-          <input name="sizes" defaultValue={product?.sizes?.join(", ")} placeholder="S, M, L, XL" />
-        </div>
-      </div>
+      ))}
+      <button
+        type="button"
+        className="btn btn-outline"
+        onClick={() => setAttrs((prev) => [...prev, { name: "", values: "" }])}
+      >
+        + Thêm thuộc tính
+      </button>
 
-      <label>Combo / phiên bản giá khác nhau (không bắt buộc)</label>
-      <textarea
-        name="variants"
-        rows={4}
-        defaultValue={variantsToText(product?.variants)}
-        placeholder={"Mua 1 cái | 599000\nCombo 2 cái | 1090000\nCombo 3 cái | 1490000"}
-      />
-      <p className="note" style={{ textAlign: "left" }}>
-        Mỗi dòng 1 combo, cú pháp: <b>Tên combo | Giá</b>. Nếu điền ở đây, khách sẽ chọn combo thay vì thấy 1 giá cố định. Để trống nếu sản phẩm chỉ có 1 giá.
+      {/* Combo: số lượng + giá */}
+      <label style={{ marginTop: 24 }}>Combo (không bắt buộc)</label>
+      <p className="note" style={{ textAlign: "left", marginTop: 0 }}>
+        Ví dụ: 1 cái giá 599.000đ, 2 cái giá 1.090.000đ... Khách chọn combo thay vì tự nhập số lượng.
       </p>
+      {combos.map((c, i) => (
+        <div key={i} className="row" style={{ alignItems: "flex-end" }}>
+          <div>
+            <label>Số lượng (cái)</label>
+            <input type="number" min="1" value={c.qty} onChange={(e) => updateCombo(i, "qty", e.target.value)} placeholder="2" />
+          </div>
+          <div>
+            <label>Giá cho combo này</label>
+            <input type="number" value={c.price} onChange={(e) => updateCombo(i, "price", e.target.value)} placeholder="1090000" />
+          </div>
+          <button type="button" onClick={() => removeCombo(i)} className="btn btn-danger" style={{ marginBottom: 14 }}>
+            Xóa
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="btn btn-outline"
+        onClick={() => setCombos((prev) => [...prev, { qty: "", price: "" }])}
+      >
+        + Thêm combo
+      </button>
 
-      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 24 }}>
         <input
           type="checkbox"
           name="active"

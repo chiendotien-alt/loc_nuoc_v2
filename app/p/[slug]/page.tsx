@@ -5,7 +5,8 @@ import ChatWidget from "@/components/ChatWidget";
 
 export const dynamic = "force-dynamic";
 
-type Variant = { name: string; price: number };
+type Attribute = { name: string; values: string[] };
+type Variant = { qty: number; price: number };
 
 function formatPrice(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
@@ -15,6 +16,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const product = await prisma.product.findUnique({ where: { slug: params.slug } });
   if (!product || !product.active) notFound();
 
+  const attributes = (product.attributes as unknown as Attribute[]) || [];
   const variants = (product.variants as unknown as Variant[]) || [];
   const hasVariants = variants.length > 0;
   const minPrice = hasVariants ? Math.min(...variants.map((v) => v.price)) : product.price;
@@ -24,9 +26,10 @@ export default async function ProductPage({ params }: { params: { slug: string }
       ? Math.round(100 - (product.price / product.oldPrice) * 100)
       : null;
 
+  const shopName = process.env.NEXT_PUBLIC_SHOP_NAME || "Đồ Gia Dụng Shop";
+
   return (
     <div className="wrap">
-      {/* Gallery vuốt ngang: video (nếu có) đứng đầu, sau đó tới ảnh */}
       <div className="carousel">
         {product.video && (
           <div className="slide">
@@ -96,12 +99,13 @@ export default async function ProductPage({ params }: { params: { slug: string }
       <OrderForm
         productId={product.id}
         productName={product.name}
-        colors={product.colors}
-        sizes={product.sizes}
+        basePrice={product.price}
+        attributes={attributes}
         variants={variants}
+        shopName={shopName}
       />
 
-      <footer>{process.env.NEXT_PUBLIC_SHOP_NAME || "Đồ Gia Dụng Shop"}</footer>
+      <footer>{shopName}</footer>
 
       <div className="bar">
         <a className="cta" href="#dathang">

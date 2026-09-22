@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { appendOrderToSheet } from "@/lib/sheets";
 
-type Variant = { name: string; price: number };
+type Variant = { qty: number; price: number };
+
+function generateOrderCode() {
+  const now = new Date();
+  const datePart = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(
+    now.getDate()
+  ).padStart(2, "0")}`;
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `DH${datePart}${rand}`;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,62 +25,102 @@ export async function POST(req: NextRequest) {
     if (!product) return NextResponse.json({ error: "product not found" }, { status: 404 });
 
     const variants = (product.variants as unknown as Variant[]) || [];
-    const chosenVariant = d.variant ? variants.find((v) => v.name === d.variant) : null;
-    const price = chosenVariant ? chosenVariant.price : product.price;
+    const chosenVariant = d.comboQty ? variants.find((v) => v.qty === Number(d.comboQty)) : null;
 
-    const order = await prisma.order.create({
-      data: {
-        productId: d.productId,
-        name: d.name,
-        phone: d.phone,
-        address: d.address,
-        color: d.color || null,
-        size: d.size || null,
-        variant: d.variant || null,
-        price,
-        quantity: Number(d.quantity) || 1,
-        source: d.source || null
-      }
-    });
+    const unitPrice = chosenVariant ? chosenVariant.price : product.price;
+    const quantity = Number(d.quantity) || 1;
+    const total = chosenVariant ? unitPrice : unitPrice * quantity;
 
-    const itemLine = chosenVariant
-      ? `${product.name} | ${chosenVariant.name}`
-      : `${product.name}${d.color ? " | " + d.color : ""}${d.size ? " | Size " + d.size : ""}${!chosenVariant ? " | SL " + (d.quantity || 1) : ""}`;
+    let code = generateOrderCode();
+    let order;
+    try {
+      order = await prisma.order.create({
+        data: {
+          code,
+          productId: d.productId,
+          name: d.name,
+          phone: d.phone,
+          address: d.address,
+          attributes: d.attributes || {},
+          comboQty: chosenVariant ? Number(d.comboQty) : null,
+          price: total,
+          quantity,
+          source: d.source || null
+        }
+      });
+    } catch {
+      // Trùng mã đơn (rất hiếm) — thử lại 1 lần với mã khác
+      code = generateOrderCode();
+      order = await prisma.order.create({
+        data: {
+          code,
+          productId: d.productId,
+          name: d.name,
+          phone: d.phone,
+          address: d.address,
+          attributes: d.attributes || {},
+          comboQty: chosenVariant ? Number(d.comboQty) : null,
+          price: total,
+          quantity,
+          source: d.source || null
+        }
+      });
+    }
+
+    const attrLine = Object.entries(d.attributes || {})
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(" | ");
 
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (token && chatId) {
       const text =
-        `🛒 ĐƠN HÀNG MỚI\n` +
+        `🛒 ĐƠN HÀNG MỚI - ${code}\n` +
         `👤 ${d.name}\n` +
         `📞 ${d.phone}\n` +
         `📍 ${d.address}\n` +
-        `📦 ${itemLine}\n` +
-        `💰 ${price.toLocaleString("vi-VN")}đ\n` +
+        `📦 ${product.name}${attrLine ? " | " + attrLine : ""} | SL ${quantity}\n` +
+        `💰 ${total.toLocaleString("vi-VN")}đ\n` +
         `🔗 ${d.source || ""}`;
 
-      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text })
-      }).catch(() => {});
+      try {
+        const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text })
+        });
+        if (!tgRes.ok) {
+          const errBody = await tgRes.text();
+          console.error("Telegram gửi thất bại:", errBody);
+        }
+      } catch (err) {
+        console.error("Telegram lỗi kết nối:", err);
+      }
+    } else {
+      console.warn("Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID, bỏ qua thông báo Telegram.");
     }
 
-    appendOrderToSheet([
-      new Date().toLocaleString("vi-VN"),
-      d.name,
-      d.phone,
-      d.address,
-      product.name,
-      d.color || "",
-      d.size || d.variant || "",
-      d.quantity || 1,
-      price,
-      d.source || ""
-    ]).catch((err) => console.error("Ghi Google Sheet lỗi:", err));
+    try {
+      await appendOrderToSheet([
+        new Date().toLocaleString("vi-VN"),
+        code,
+        d.name,
+        d.phone,
+        d.address,
+        product.name,
+        attrLine,
+        quantity,
+        total,
+        d.source || ""
+      ]);
+    } catch (err) {
+      console.error("Ghi Google Sheet lỗi:", err);
+    }
 
-    return NextResponse.json({ ok: true, id: order.id });
+    return NextResponse.json({ ok: true, code, price: unitPrice, total });
   } catch (err) {
+    console.error("Lỗi tạo đơn hàng:", err);
     return NextResponse.json({ error: "server error" }, { status: 500 });
   }
 }

@@ -6,7 +6,10 @@ export async function appendOrderToSheet(row: (string | number)[]) {
   const sheetId = process.env.GOOGLE_SHEET_ID;
 
   // Chưa cấu hình Google Sheet thì bỏ qua, không làm hỏng luồng đặt hàng
-  if (!email || !key || !sheetId) return;
+  if (!email || !key || !sheetId) {
+    console.warn("Thiếu GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_PRIVATE_KEY / GOOGLE_SHEET_ID, bỏ qua ghi Sheet.");
+    return;
+  }
 
   const auth = new google.auth.JWT({
     email,

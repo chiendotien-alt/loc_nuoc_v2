@@ -94,6 +94,19 @@ footer{background:var(--soft);padding:22px 0;margin-top:30px;font-size:14px;colo
 .chat-input input{flex:1;padding:10px}
 .chat-input button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:0 14px;font-size:14px}
 
+/* Phiếu đơn hàng */
+.receipt{border:1px solid var(--line);border-radius:12px;padding:20px;background:#fff}
+.receipt-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;margin-bottom:10px}
+.receipt-head b{font-size:16px}
+.receipt-head span{font-size:12px;color:var(--muted)}
+.receipt-code{text-align:center;font-weight:700;color:var(--accent);font-size:15px;margin-bottom:12px;letter-spacing:.5px}
+.receipt-row{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:5px 0}
+.receipt-row span{color:var(--muted)}
+.receipt-total{font-size:17px}
+.receipt-total b{color:var(--accent)}
+.receipt hr{border:none;border-top:1px dashed var(--line);margin:8px 0}
+.receipt-note{text-align:center;font-size:12px;color:var(--muted);margin-top:10px}
+
 .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
   padding:10px 16px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;z-index:50}
 .bar a.call{flex:0 0 46px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);

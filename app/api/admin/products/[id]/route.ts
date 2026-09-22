@@ -6,20 +6,6 @@ function toList(v: string | undefined) {
   return v.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-function parseVariants(v: string | undefined) {
-  if (!v) return [];
-  return v
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [name, priceStr] = line.split("|").map((s) => s.trim());
-      const price = Number(priceStr);
-      return name && !isNaN(price) ? { name, price } : null;
-    })
-    .filter(Boolean);
-}
-
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const d = await req.json();
 
@@ -33,9 +19,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       description: d.description || "",
       images: toList(d.images),
       video: d.video || null,
-      colors: toList(d.colors),
-      sizes: toList(d.sizes),
-      variants: parseVariants(d.variants),
+      attributes: Array.isArray(d.attributes) ? d.attributes : [],
+      variants: Array.isArray(d.variants) ? d.variants : [],
       active: d.active !== false
     }
   });

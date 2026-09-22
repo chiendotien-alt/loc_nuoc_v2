@@ -17,8 +17,7 @@ model Product {
   description String
   images      String[] @default([])
   video       String?
-  colors      String[] @default([])
-  sizes       String[] @default([])
+  attributes  Json     @default("[]")
   variants    Json     @default("[]")
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -27,18 +26,18 @@ model Product {
 }
 
 model Order {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  name      String
-  phone     String
-  address   String
-  color     String?
-  size      String?
-  variant   String?
-  price     Int?
-  quantity  Int      @default(1)
-  source    String?
-  status    String   @default("Mới")
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  code       String   @unique
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  name       String
+  phone      String
+  address    String
+  attributes Json?
+  comboQty   Int?
+  price      Int?
+  quantity   Int      @default(1)
+  source     String?
+  status     String   @default("Mới")
+  createdAt  DateTime @default(now())
 }

@@ -22,8 +22,11 @@ Không tự bịa thông tin không có trong dữ liệu dưới đây.
 Tên sản phẩm: ${product.name}
 Giá: ${product.price.toLocaleString("vi-VN")}đ
 Mô tả: ${product.description}
-Màu: ${product.colors.join(", ") || "không có tùy chọn màu"}
-Size: ${product.sizes.join(", ") || "không có tùy chọn size"}`;
+Thuộc tính: ${
+      (product.attributes as unknown as { name: string; values: string[] }[])
+        ?.map((a) => `${a.name}: ${a.values.join(", ")}`)
+        .join(" | ") || "không có tùy chọn"
+    }`;
 
     const rawHistory: { role: string; content: string }[] =
       Array.isArray(history) && history.length > 0 ? history.slice(-10) : [{ role: "user", content: "Xin chào" }];
