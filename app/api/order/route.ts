@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { appendOrderToSheet } from "@/lib/sheets";
 
+type Variant = { name: string; price: number };
+
 export async function POST(req: NextRequest) {
   try {
     const d = await req.json();
@@ -13,6 +15,10 @@ export async function POST(req: NextRequest) {
     const product = await prisma.product.findUnique({ where: { id: d.productId } });
     if (!product) return NextResponse.json({ error: "product not found" }, { status: 404 });
 
+    const variants = (product.variants as unknown as Variant[]) || [];
+    const chosenVariant = d.variant ? variants.find((v) => v.name === d.variant) : null;
+    const price = chosenVariant ? chosenVariant.price : product.price;
+
     const order = await prisma.order.create({
       data: {
         productId: d.productId,
@@ -21,10 +27,16 @@ export async function POST(req: NextRequest) {
         address: d.address,
         color: d.color || null,
         size: d.size || null,
+        variant: d.variant || null,
+        price,
         quantity: Number(d.quantity) || 1,
         source: d.source || null
       }
     });
+
+    const itemLine = chosenVariant
+      ? `${product.name} | ${chosenVariant.name}`
+      : `${product.name}${d.color ? " | " + d.color : ""}${d.size ? " | Size " + d.size : ""}${!chosenVariant ? " | SL " + (d.quantity || 1) : ""}`;
 
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -34,7 +46,8 @@ export async function POST(req: NextRequest) {
         `👤 ${d.name}\n` +
         `📞 ${d.phone}\n` +
         `📍 ${d.address}\n` +
-        `📦 ${product.name}${d.color ? " | " + d.color : ""}${d.size ? " | Size " + d.size : ""} | SL ${d.quantity || 1}\n` +
+        `📦 ${itemLine}\n` +
+        `💰 ${price.toLocaleString("vi-VN")}đ\n` +
         `🔗 ${d.source || ""}`;
 
       fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -51,8 +64,9 @@ export async function POST(req: NextRequest) {
       d.address,
       product.name,
       d.color || "",
-      d.size || "",
+      d.size || d.variant || "",
       d.quantity || 1,
+      price,
       d.source || ""
     ]).catch((err) => console.error("Ghi Google Sheet lỗi:", err));
 
@@ -61,4 +75,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "server error" }, { status: 500 });
   }
 }
-

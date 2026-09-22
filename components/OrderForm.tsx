@@ -2,20 +2,28 @@
 
 import { useState } from "react";
 
+type Variant = { name: string; price: number };
+
+function formatPrice(n: number) {
+  return n.toLocaleString("vi-VN") + "đ";
+}
+
 export default function OrderForm({
   productId,
-  productName,
   colors,
-  sizes
+  sizes,
+  variants
 }: {
   productId: string;
   productName: string;
   colors: string[];
   sizes: string[];
+  variants: Variant[];
 }) {
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const [selectedVariant, setSelectedVariant] = useState(variants[0]?.name || "");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -55,6 +63,42 @@ export default function OrderForm({
 
   return (
     <form onSubmit={handleSubmit}>
+      {variants.length > 0 && (
+        <>
+          <label>Chọn combo *</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 4 }}>
+            {variants.map((v) => (
+              <label
+                key={v.name}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  border: `2px solid ${selectedVariant === v.name ? "var(--accent)" : "var(--line)"}`,
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  cursor: "pointer",
+                  fontWeight: 400
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="radio"
+                    name="variant"
+                    value={v.name}
+                    checked={selectedVariant === v.name}
+                    onChange={() => setSelectedVariant(v.name)}
+                    style={{ width: "auto" }}
+                  />
+                  {v.name}
+                </span>
+                <b style={{ color: "var(--accent)" }}>{formatPrice(v.price)}</b>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+
       <label>Họ và tên *</label>
       <input name="name" required placeholder="Nguyễn Thị A" />
 
@@ -89,12 +133,16 @@ export default function OrderForm({
         </div>
       )}
 
-      <label>Số lượng</label>
-      <select name="quantity" defaultValue="1">
-        <option>1</option>
-        <option>2</option>
-        <option>3</option>
-      </select>
+      {variants.length === 0 && (
+        <>
+          <label>Số lượng</label>
+          <select name="quantity" defaultValue="1">
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+          </select>
+        </>
+      )}
 
       <br />
       <br />

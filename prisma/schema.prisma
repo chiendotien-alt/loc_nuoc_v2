@@ -16,8 +16,10 @@ model Product {
   oldPrice    Int?
   description String
   images      String[] @default([])
+  video       String?
   colors      String[] @default([])
   sizes       String[] @default([])
+  variants    Json     @default("[]")
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -33,6 +35,8 @@ model Order {
   address   String
   color     String?
   size      String?
+  variant   String?
+  price     Int?
   quantity  Int      @default(1)
   source    String?
   status    String   @default("Mới")
