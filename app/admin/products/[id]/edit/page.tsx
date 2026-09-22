@@ -5,9 +5,18 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+type Attribute = { name: string; values: string[] };
+type Variant = { qty: number; price: number };
+
 export default async function EditProductPage({ params }: { params: { id: string } }) {
   const product = await prisma.product.findUnique({ where: { id: params.id } });
   if (!product) notFound();
+
+  const productForForm = {
+    ...product,
+    attributes: (product.attributes as unknown as Attribute[]) || [],
+    variants: (product.variants as unknown as Variant[]) || []
+  };
 
   return (
     <div className="wrap" style={{ paddingTop: 20 }}>
@@ -15,7 +24,7 @@ export default async function EditProductPage({ params }: { params: { id: string
         ← Quay lại danh sách
       </Link>
       <h1>Sửa: {product.name}</h1>
-      <ProductForm product={product} />
+      <ProductForm product={productForForm} />
     </div>
   );
 }
