@@ -28,6 +28,7 @@ Size: ${product.sizes.join(", ") || "không có tùy chọn size"}`;
     const rawHistory: { role: string; content: string }[] =
       Array.isArray(history) && history.length > 0 ? history.slice(-10) : [{ role: "user", content: "Xin chào" }];
 
+    // Gemini dùng role "user" / "model" thay vì "user" / "assistant"
     const contents = rawHistory.map((m) => ({
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.content }]

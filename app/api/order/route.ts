@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { appendOrderToSheet } from "@/lib/sheets";
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,8 +44,21 @@ export async function POST(req: NextRequest) {
       }).catch(() => {});
     }
 
+    appendOrderToSheet([
+      new Date().toLocaleString("vi-VN"),
+      d.name,
+      d.phone,
+      d.address,
+      product.name,
+      d.color || "",
+      d.size || "",
+      d.quantity || 1,
+      d.source || ""
+    ]).catch((err) => console.error("Ghi Google Sheet lỗi:", err));
+
     return NextResponse.json({ ok: true, id: order.id });
   } catch (err) {
     return NextResponse.json({ error: "server error" }, { status: 500 });
   }
 }
+
