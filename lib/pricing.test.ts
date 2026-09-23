@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { computePricing, normalizeTiers, tierRangeLabel, mergeLines } from "./pricing.ts";
+import { computePricing, normalizeTiers, tierRangeLabel, mergeLines, getUnit } from "./pricing.ts";
 
 const BASE = 55000;
 const TIERS = [
@@ -166,5 +166,37 @@ describe("mergeLines", () => {
     ]);
     assert.equal(merged.length, 2);
     assert.equal(merged.find((l) => l.attrs["Màu"] === "đen")?.qty, 3);
+  });
+});
+
+describe("tên đơn vị", () => {
+  test("mặc định là 'cái' khi chưa đặt", () => {
+    assert.equal(getUnit([]), "cái");
+    assert.equal(getUnit(null), "cái");
+    assert.equal(getUnit([{ qty: 2, unitPrice: 38000 }]), "cái");
+  });
+
+  test("đọc tên đơn vị admin đặt và cắt khoảng trắng", () => {
+    assert.equal(getUnit([{ qty: 2, unitPrice: 38000 }, { qty: 0, unit: "  bộ " }]), "bộ");
+  });
+
+  test("tên đơn vị rỗng -> quay về 'cái'", () => {
+    assert.equal(getUnit([{ qty: 0, unit: "   " }]), "cái");
+  });
+
+  test("phần tử đơn vị không bị tính thành mốc giá và không ảnh hưởng tiền", () => {
+    const variants = [{ qty: 2, unitPrice: 38000 }, { qty: 0, unitPrice: 0, unit: "bộ" }];
+    assert.deepEqual(normalizeTiers(variants, BASE), [
+      { qty: 1, unitPrice: BASE },
+      { qty: 2, unitPrice: 38000 }
+    ]);
+    assert.equal(computePricing(variants, BASE, 2).total, 76000);
+    assert.equal(computePricing(variants, BASE, 1).total, 55000);
+  });
+
+  test("nhãn mốc dùng đúng đơn vị", () => {
+    const t = normalizeTiers([{ qty: 3, unitPrice: 32000 }], BASE);
+    assert.equal(tierRangeLabel(t, 0, "bộ"), "1 – 2 bộ");
+    assert.equal(tierRangeLabel(t, 1, "bộ"), "3+ bộ");
   });
 });

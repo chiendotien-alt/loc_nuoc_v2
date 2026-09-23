@@ -72,6 +72,12 @@ th{background:var(--soft)}
 .review-card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;background:var(--soft)}
 .review-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
 .review-card p{font-size:14.5px;color:#3a352e}
+.pager{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+.pager button{min-width:38px;height:38px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:#fff;
+  font-size:15px;font-weight:600;color:var(--fg);cursor:pointer;transition:border-color .15s,background .15s}
+.pager button:hover:not(:disabled){border-color:var(--accent)}
+.pager button:disabled{opacity:.35;cursor:not-allowed}
+.pager .pager-active{background:var(--accent);border-color:var(--accent);color:#fff}
 .review-images{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
 .review-images img{width:64px;height:64px;flex:0 0 64px;object-fit:cover;border-radius:8px;background:var(--line)}
 

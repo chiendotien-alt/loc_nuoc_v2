@@ -6,6 +6,7 @@ import {
   computePricing,
   normalizeTiers,
   tierRangeLabel,
+  getUnit,
   mergeLines,
   MAX_LINE_QTY,
   MAX_TOTAL_QTY,
@@ -46,6 +47,7 @@ export default function OrderForm({
   const totalQty = lines.reduce((s, l) => s + l.qty, 0);
   const pricing = useMemo(() => computePricing(variants, basePrice, totalQty), [variants, basePrice, totalQty]);
   const tiers = useMemo(() => normalizeTiers(variants, basePrice), [variants, basePrice]);
+  const unit = getUnit(variants);
   const hasTiers = tiers.length > 1;
   const retailPrice = tiers[0].unitPrice;
 
@@ -114,7 +116,7 @@ export default function OrderForm({
         total: result.total,
         pricingNote:
           result.tierQty > 1
-            ? `${formatPrice(result.unitPrice)}/cái (mua từ ${result.tierQty} cái)`
+            ? `${formatPrice(result.unitPrice)}/${unit} (mua từ ${result.tierQty} ${unit})`
             : undefined,
         createdAt: new Date().toLocaleString("vi-VN")
       });
@@ -142,29 +144,20 @@ export default function OrderForm({
 
   return (
     <form onSubmit={handleSubmit} id="order-form">
-      <label>Họ và tên *</label>
-      <input name="name" required placeholder="Nguyễn Thị A" />
-
-      <label>Số điện thoại *</label>
-      <input name="phone" type="tel" required pattern="0[0-9]{9}" placeholder="0912345678" />
-
-      <label>Địa chỉ nhận hàng *</label>
-      <textarea name="address" rows={2} required placeholder="Số nhà, xã/phường, quận/huyện, tỉnh" />
-
-      <label style={{ marginTop: 14 }}>{hasAttrs ? "Chọn loại & số lượng *" : "Số lượng *"}</label>
+      <label style={{ marginTop: 0 }}>{hasAttrs ? "Chọn loại & số lượng *" : "Số lượng *"}</label>
 
       {hasTiers && (
         <div className="tier-box">
-          <div className="tier-title">Mua càng nhiều, giá mỗi cái càng rẻ</div>
+          <div className="tier-title">Mua càng nhiều, giá mỗi {unit} càng rẻ</div>
           <div className="tier-strip">
             {tiers.map((t, i) => {
               const active = totalQty > 0 && t.qty === pricing.tierQty;
               const off = Math.round((1 - t.unitPrice / retailPrice) * 100);
               return (
                 <div key={t.qty} className={"tier-item" + (active ? " tier-active" : "")}>
-                  <span className="tier-range">{tierRangeLabel(tiers, i)}</span>
+                  <span className="tier-range">{tierRangeLabel(tiers, i, unit)}</span>
                   <b className="tier-price">{formatPrice(t.unitPrice)}</b>
-                  <span className="tier-unit">/cái</span>
+                  <span className="tier-unit">/{unit}</span>
                   {off > 0 && <span className="tier-off">Giảm {off}%</span>}
                 </div>
               );
@@ -172,8 +165,8 @@ export default function OrderForm({
           </div>
           {pricing.nextTier ? (
             <p className="tier-hint">
-              Mua thêm <b>{pricing.nextTier.needMore} cái</b> để giảm còn{" "}
-              <b>{formatPrice(pricing.nextTier.unitPrice)}/cái</b>
+              Mua thêm <b>{pricing.nextTier.needMore} {unit}</b> để giảm còn{" "}
+              <b>{formatPrice(pricing.nextTier.unitPrice)}/{unit}</b>
             </p>
           ) : (
             <p className="tier-hint tier-hint-ok">Bạn đang được giá tốt nhất</p>
@@ -240,16 +233,26 @@ export default function OrderForm({
 
       <div className="total-box">
         <span>
-          Tổng tiền ({totalQty} cái)
+          Tổng tiền ({totalQty} {unit})
           {hasTiers && (
             <small style={{ display: "block", marginTop: 2 }}>
-              {formatPrice(pricing.unitPrice)}/cái
+              {formatPrice(pricing.unitPrice)}/{unit}
               {pricing.savings > 0 && ` · tiết kiệm ${formatPrice(pricing.savings)}`}
             </small>
           )}
         </span>
         <b>{formatPrice(pricing.total)}</b>
       </div>
+
+      <label style={{ marginTop: 6, fontSize: 15 }}>Thông tin nhận hàng</label>
+      <label style={{ marginTop: 8 }}>Họ và tên *</label>
+      <input name="name" required placeholder="Nguyễn Thị A" />
+
+      <label>Số điện thoại *</label>
+      <input name="phone" type="tel" required pattern="0[0-9]{9}" placeholder="0912345678" />
+
+      <label>Địa chỉ nhận hàng *</label>
+      <textarea name="address" rows={2} required placeholder="Số nhà, xã/phường, quận/huyện, tỉnh" />
 
       <button type="submit" className="cta" disabled={sending}>
         {sending ? "Đang gửi..." : "Mua ngay"}

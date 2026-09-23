@@ -4,7 +4,7 @@ import OrderForm from "@/components/OrderForm";
 import ChatWidget from "@/components/ChatWidget";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
-import { normalizeTiers, type Variant } from "@/lib/pricing";
+import { normalizeTiers, getUnit, type Variant } from "@/lib/pricing";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +50,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const variants = (product.variants as unknown as Variant[]) || [];
   const reviews = (product.reviews as unknown as Review[]) || [];
   const tiers = normalizeTiers(variants, product.price);
+  const unit = getUnit(variants);
   const hasTiers = tiers.length > 1;
   const retailPrice = tiers[0].unitPrice;
   const bestTier = tiers.reduce((b, t) => (t.unitPrice < b.unitPrice ? t : b), tiers[0]);
@@ -76,7 +77,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
       </div>
       {hasTiers && bestTier.qty > 1 && (
         <p className="note" style={{ textAlign: "left", margin: "4px 0 0" }}>
-          Mua từ <b>{bestTier.qty} cái</b> chỉ còn <b>{formatPrice(bestTier.unitPrice)}/cái</b>
+          Mua từ <b>{bestTier.qty} {unit}</b> chỉ còn <b>{formatPrice(bestTier.unitPrice)}/{unit}</b>
         </p>
       )}
 

@@ -2,7 +2,7 @@
  * Mốc giá theo số lượng: từ `qty` cái trở lên, MỖI cái tính `unitPrice`.
  * (`price` chỉ còn để đọc dữ liệu cũ dạng "giá cả gói combo".)
  */
-export type Variant = { qty: number; unitPrice?: number; price?: number };
+export type Variant = { qty: number; unitPrice?: number; price?: number; unit?: string };
 export type Tier = { qty: number; unitPrice: number };
 export type OrderLine = { attrs: Record<string, string>; qty: number };
 export type PricingResult = {
@@ -17,8 +17,19 @@ export type PricingResult = {
   savings: number;
 };
 
+export const DEFAULT_UNIT = "cái";
 export const MAX_LINE_QTY = 99;
 export const MAX_TOTAL_QTY = 200;
+
+/**
+ * Tên đơn vị (cái, bộ, hộp...) do admin đặt. Lưu chung trong mảng `variants` dưới dạng
+ * một phần tử đặc biệt `{ qty: 0, unit: "bộ" }` để không cần đổi database.
+ * `normalizeTiers` bỏ qua phần tử này vì qty < 1.
+ */
+export function getUnit(variants: Variant[] | null | undefined): string {
+  const found = (variants || []).find((v) => Number(v?.qty) === 0 && typeof v?.unit === "string" && v.unit.trim());
+  return found ? found.unit!.trim() : DEFAULT_UNIT;
+}
 
 /**
  * Chuẩn hoá danh sách mốc: bỏ mốc lỗi, luôn có mốc 1 cái (= basePrice nếu chưa khai báo),
@@ -71,13 +82,13 @@ export function computePricing(
   };
 }
 
-/** Nhãn khoảng số lượng của mốc thứ i: "1 cái", "2 – 4 cái", "5+ cái". */
-export function tierRangeLabel(tiers: Tier[], i: number): string {
+/** Nhãn khoảng số lượng của mốc thứ i: "1 cái", "2 – 4 cái", "5+ cái" (đơn vị do admin đặt). */
+export function tierRangeLabel(tiers: Tier[], i: number, unit: string = DEFAULT_UNIT): string {
   const cur = tiers[i];
   const next = tiers[i + 1];
-  if (!next) return i === 0 ? `${cur.qty} cái` : `${cur.qty}+ cái`;
+  if (!next) return i === 0 ? `${cur.qty} ${unit}` : `${cur.qty}+ ${unit}`;
   const to = next.qty - 1;
-  return to > cur.qty ? `${cur.qty} – ${to} cái` : `${cur.qty} cái`;
+  return to > cur.qty ? `${cur.qty} – ${to} ${unit}` : `${cur.qty} ${unit}`;
 }
 
 /** Gộp các dòng có cùng thuộc tính thành 1 dòng (cộng dồn số lượng). */

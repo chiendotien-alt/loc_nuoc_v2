@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { appendOrderToSheet } from "@/lib/sheets";
 import {
   computePricing,
+  getUnit,
   linesToText,
   mergeLines,
   MAX_LINE_QTY,
@@ -91,7 +92,9 @@ export async function POST(req: NextRequest) {
 
     const attrLine = linesToText(lines);
     const comboNote =
-      tierQty > 1 ? `${unitPrice.toLocaleString("vi-VN")}đ/cái, mốc từ ${tierQty} cái` : "";
+      tierQty > 1
+        ? `${unitPrice.toLocaleString("vi-VN")}đ/${getUnit(variants)}, mốc từ ${tierQty} ${getUnit(variants)}`
+        : "";
 
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;

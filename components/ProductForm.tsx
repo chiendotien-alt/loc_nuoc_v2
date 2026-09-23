@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getUnit, DEFAULT_UNIT } from "@/lib/pricing";
 
 type Attribute = { name: string; values: string };
 type Combo = { qty: string; unitPrice: string };
@@ -17,7 +18,7 @@ type Product = {
   images?: string[];
   video?: string | null;
   attributes?: { name: string; values: string[] }[];
-  variants?: { qty: number; unitPrice?: number; price?: number }[];
+  variants?: { qty: number; unitPrice?: number; price?: number; unit?: string }[];
   reviews?: { name: string; rating: number; text: string; images?: string[] }[];
   active?: boolean;
 };
@@ -33,9 +34,10 @@ export default function ProductForm({ product }: { product?: Product }) {
       ? product.attributes.map((a) => ({ name: a.name, values: a.values.join(", ") }))
       : []
   );
+  const [unit, setUnit] = useState<string>(getUnit(product?.variants));
   const [combos, setCombos] = useState<Combo[]>(
-    product?.variants?.length
-      ? product.variants.map((v) => ({
+    product?.variants?.some((v) => v.qty >= 1)
+      ? product.variants.filter((v) => v.qty >= 1).map((v) => ({
           qty: String(v.qty),
           unitPrice: String(v.unitPrice ?? Math.round(Number(v.price) / v.qty))
         }))
@@ -92,7 +94,9 @@ export default function ProductForm({ product }: { product?: Product }) {
       variants: combos
         .map((c) => ({ qty: Math.floor(Number(c.qty)), unitPrice: Number(c.unitPrice) }))
         .filter((c) => c.qty > 1 && c.unitPrice > 0)
-        .sort((a, b) => a.qty - b.qty),
+        .sort((a, b) => a.qty - b.qty)
+        // phần tử đặc biệt lưu tên đơn vị (qty = 0), xem getUnit trong lib/pricing.ts
+        .concat(unit.trim() && unit.trim() !== DEFAULT_UNIT ? [{ qty: 0, unitPrice: 0, unit: unit.trim() } as any] : []),
       reviews: reviews
         .map((r) => ({
           name: r.name.trim(),
@@ -197,18 +201,31 @@ export default function ProductForm({ product }: { product?: Product }) {
       </button>
 
       {/* Combo: số lượng + giá */}
+      <label style={{ marginTop: 24 }}>Tên đơn vị tính</label>
+      <input
+        value={unit}
+        onChange={(e) => setUnit(e.target.value)}
+        maxLength={20}
+        placeholder="cái"
+        style={{ maxWidth: 220 }}
+      />
+      <p className="note" style={{ textAlign: "left", marginTop: 6 }}>
+        Hiển thị trên trang bán hàng: “55.000đ/<b>{unit.trim() || DEFAULT_UNIT}</b>”, “Mua thêm 1 <b>{unit.trim() || DEFAULT_UNIT}</b>”...
+        Ví dụ: cái, bộ, chiếc, hộp, đôi, cuộn.
+      </p>
+
       <label style={{ marginTop: 24 }}>Mốc giá theo số lượng (không bắt buộc)</label>
       <p className="note" style={{ textAlign: "left", marginTop: 0 }}>
-        Ví dụ: từ 2 cái giá 38.000đ/cái, từ 3 cái giá 33.000đ/cái. Khi khách mua đủ số lượng, TOÀN BỘ đơn được tính theo đơn giá mới (số lượng cộng dồn tất cả các loại). Mốc 1 cái dùng "Giá bán mặc định" ở trên.
+        Ví dụ: từ 2 giá 38.000đ mỗi đơn vị, từ 3 giá 33.000đ mỗi đơn vị. Khi khách mua đủ số lượng, TOÀN BỘ đơn được tính theo đơn giá mới (số lượng cộng dồn tất cả các loại). Mốc 1 đơn vị dùng “Giá bán mặc định” ở trên.
       </p>
       {combos.map((c, i) => (
         <div key={i} className="row" style={{ alignItems: "flex-end" }}>
           <div>
-            <label>Từ số lượng (cái)</label>
+            <label>Từ số lượng ({unit.trim() || DEFAULT_UNIT})</label>
             <input type="number" min="1" value={c.qty} onChange={(e) => updateCombo(i, "qty", e.target.value)} placeholder="2" />
           </div>
           <div>
-            <label>Đơn giá mỗi cái (đ)</label>
+            <label>Đơn giá mỗi {unit.trim() || DEFAULT_UNIT} (đ)</label>
             <input type="number" value={c.unitPrice} onChange={(e) => updateCombo(i, "unitPrice", e.target.value)} placeholder="38000" />
           </div>
           <button type="button" onClick={() => removeCombo(i)} className="btn btn-danger" style={{ marginBottom: 14 }}>
