@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import OrderForm from "@/components/OrderForm";
 import ChatWidget from "@/components/ChatWidget";
+import MediaGallery from "@/components/MediaGallery";
 
 export const dynamic = "force-dynamic";
 
@@ -30,24 +31,11 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   return (
     <div className="wrap">
-      <div className="carousel">
-        {product.video && (
-          <div className="slide">
-            <video src={product.video} controls playsInline preload="metadata" />
-          </div>
-        )}
-        {product.images.length > 0 ? (
-          product.images.map((src, i) => (
-            <div className="slide" key={i}>
-              <img src={src} alt={`${product.name} ${i + 1}`} />
-            </div>
-          ))
-        ) : (
-          <div className="slide">
-            <img src="https://placehold.co/560x700?text=San+pham" alt={product.name} />
-          </div>
-        )}
-      </div>
+      <MediaGallery
+        video={product.video}
+        images={product.images}
+        productName={product.name}
+      />
 
       <h1>{product.name}</h1>
 
