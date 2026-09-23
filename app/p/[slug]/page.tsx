@@ -4,12 +4,12 @@ import OrderForm from "@/components/OrderForm";
 import ChatWidget from "@/components/ChatWidget";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
+import { normalizeTiers, type Variant } from "@/lib/pricing";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
 type Attribute = { name: string; values: string[] };
-type Variant = { qty: number; price: number };
 type Review = { name: string; rating: number; text: string; images?: string[] };
 
 function formatPrice(n: number) {
@@ -49,12 +49,14 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const attributes = (product.attributes as unknown as Attribute[]) || [];
   const variants = (product.variants as unknown as Variant[]) || [];
   const reviews = (product.reviews as unknown as Review[]) || [];
-  const hasVariants = variants.length > 0;
-  const minPrice = hasVariants ? Math.min(...variants.map((v) => v.price)) : product.price;
+  const tiers = normalizeTiers(variants, product.price);
+  const hasTiers = tiers.length > 1;
+  const retailPrice = tiers[0].unitPrice;
+  const bestTier = tiers.reduce((b, t) => (t.unitPrice < b.unitPrice ? t : b), tiers[0]);
 
   const discount =
-    !hasVariants && product.oldPrice && product.oldPrice > product.price
-      ? Math.round(100 - (product.price / product.oldPrice) * 100)
+    product.oldPrice && product.oldPrice > retailPrice
+      ? Math.round(100 - (retailPrice / product.oldPrice) * 100)
       : null;
 
   const shopName = process.env.NEXT_PUBLIC_SHOP_NAME || "Đồ Gia Dụng Shop";
@@ -66,16 +68,17 @@ export default async function ProductPage({ params }: { params: { slug: string }
       <h1>{product.name}</h1>
 
       <div className="price">
-        {hasVariants ? (
-          <span className="new">Từ {formatPrice(minPrice)}</span>
-        ) : (
-          <>
-            <span className="new">{formatPrice(product.price)}</span>
-            {product.oldPrice && <span className="old">{formatPrice(product.oldPrice)}</span>}
-            {discount && <span className="tag">-{discount}%</span>}
-          </>
+        <span className="new">{formatPrice(retailPrice)}</span>
+        {product.oldPrice && product.oldPrice > retailPrice && (
+          <span className="old">{formatPrice(product.oldPrice)}</span>
         )}
+        {discount && <span className="tag">-{discount}%</span>}
       </div>
+      {hasTiers && bestTier.qty > 1 && (
+        <p className="note" style={{ textAlign: "left", margin: "4px 0 0" }}>
+          Mua từ <b>{bestTier.qty} cái</b> chỉ còn <b>{formatPrice(bestTier.unitPrice)}/cái</b>
+        </p>
+      )}
 
       <a href="#dathang" className="cta">
         ĐẶT HÀNG NGAY

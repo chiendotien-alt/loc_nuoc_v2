@@ -1,52 +1,83 @@
-export type Variant = { qty: number; price: number };
+/**
+ * Mốc giá theo số lượng: từ `qty` cái trở lên, MỖI cái tính `unitPrice`.
+ * (`price` chỉ còn để đọc dữ liệu cũ dạng "giá cả gói combo".)
+ */
+export type Variant = { qty: number; unitPrice?: number; price?: number };
+export type Tier = { qty: number; unitPrice: number };
 export type OrderLine = { attrs: Record<string, string>; qty: number };
-export type PricePart = { qty: number; price: number; count: number };
+export type PricingResult = {
+  total: number;
+  /** Đơn giá đang áp dụng cho mỗi cái */
+  unitPrice: number;
+  /** Số lượng tối thiểu của mốc đang áp dụng (1 = giá lẻ) */
+  tierQty: number;
+  /** Mốc rẻ hơn kế tiếp và cần mua thêm bao nhiêu cái, null nếu đã ở mốc thấp nhất */
+  nextTier: { qty: number; unitPrice: number; needMore: number } | null;
+  /** Số tiền tiết kiệm so với mua giá lẻ (mốc 1 cái) */
+  savings: number;
+};
 
 export const MAX_LINE_QTY = 99;
 export const MAX_TOTAL_QTY = 200;
 
 /**
- * Tính giá thấp nhất cho `totalQty` cái, ghép từ các gói combo (variants)
- * và giá lẻ (basePrice) cho phần còn lại.
- * Ví dụ: combo 3 = 250k, lẻ = 99k, mua 4 cái => 1 combo 3 + 1 lẻ.
+ * Chuẩn hoá danh sách mốc: bỏ mốc lỗi, luôn có mốc 1 cái (= basePrice nếu chưa khai báo),
+ * sắp xếp tăng dần theo số lượng. Dữ liệu cũ (chỉ có `price` của cả gói) được đổi
+ * sang đơn giá = price / qty để không bị hỏng.
+ */
+export function normalizeTiers(variants: Variant[] | null | undefined, basePrice: number): Tier[] {
+  const map = new Map<number, number>();
+  for (const v of variants || []) {
+    const qty = Math.floor(Number(v?.qty));
+    if (!Number.isFinite(qty) || qty < 1) continue;
+    const unit = v.unitPrice != null ? Number(v.unitPrice) : Math.round(Number(v.price) / qty);
+    if (!Number.isFinite(unit) || unit < 0) continue;
+    map.set(qty, unit);
+  }
+  if (!map.has(1)) map.set(1, basePrice);
+  return Array.from(map, ([qty, unitPrice]) => ({ qty, unitPrice })).sort((a, b) => a.qty - b.qty);
+}
+
+/**
+ * Tính tiền theo bậc: tìm mốc rẻ nhất mà tổng số lượng đã đạt,
+ * rồi lấy đơn giá của mốc đó × TOÀN BỘ số lượng.
+ * Ví dụ: 1 cái 55k, từ 2 cái 38k, từ 3 cái 33k → mua 3 cái = 3 × 33k = 99k.
  */
 export function computePricing(
-  variants: Variant[],
+  variants: Variant[] | null | undefined,
   basePrice: number,
   totalQty: number
-): { total: number; parts: PricePart[] } {
-  if (totalQty <= 0) return { total: 0, parts: [] };
-
-  const packs: Variant[] = variants.filter((v) => v.qty > 0 && v.price >= 0);
-  if (!packs.some((p) => p.qty === 1)) packs.push({ qty: 1, price: basePrice });
-
-  const cost: number[] = new Array(totalQty + 1).fill(Infinity);
-  const pick: number[] = new Array(totalQty + 1).fill(-1);
-  cost[0] = 0;
-
-  for (let n = 1; n <= totalQty; n++) {
-    packs.forEach((p, idx) => {
-      if (p.qty <= n && cost[n - p.qty] + p.price < cost[n]) {
-        cost[n] = cost[n - p.qty] + p.price;
-        pick[n] = idx;
-      }
-    });
+): PricingResult {
+  const tiers = normalizeTiers(variants, basePrice);
+  if (!(totalQty > 0)) {
+    return { total: 0, unitPrice: tiers[0].unitPrice, tierQty: 1, nextTier: null, savings: 0 };
   }
 
-  const counts = new Map<number, PricePart>();
-  let n = totalQty;
-  while (n > 0) {
-    const p = packs[pick[n]];
-    const cur = counts.get(p.qty) || { qty: p.qty, price: p.price, count: 0 };
-    cur.count += 1;
-    counts.set(p.qty, cur);
-    n -= p.qty;
+  let best = tiers[0];
+  for (const t of tiers) {
+    if (t.qty > totalQty) continue;
+    if (t.unitPrice < best.unitPrice || (t.unitPrice === best.unitPrice && t.qty > best.qty)) best = t;
   }
+
+  const next = tiers.find((t) => t.qty > totalQty && t.unitPrice < best.unitPrice);
+  const total = best.unitPrice * totalQty;
 
   return {
-    total: cost[totalQty],
-    parts: Array.from(counts.values()).sort((a, b) => b.qty - a.qty)
+    total,
+    unitPrice: best.unitPrice,
+    tierQty: best.qty,
+    nextTier: next ? { qty: next.qty, unitPrice: next.unitPrice, needMore: next.qty - totalQty } : null,
+    savings: Math.max(0, tiers[0].unitPrice * totalQty - total)
   };
+}
+
+/** Nhãn khoảng số lượng của mốc thứ i: "1 cái", "2 – 4 cái", "5+ cái". */
+export function tierRangeLabel(tiers: Tier[], i: number): string {
+  const cur = tiers[i];
+  const next = tiers[i + 1];
+  if (!next) return i === 0 ? `${cur.qty} cái` : `${cur.qty}+ cái`;
+  const to = next.qty - 1;
+  return to > cur.qty ? `${cur.qty} – ${to} cái` : `${cur.qty} cái`;
 }
 
 /** Gộp các dòng có cùng thuộc tính thành 1 dòng (cộng dồn số lượng). */

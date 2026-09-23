@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     // Giá do server tự tính, không tin số tiền từ phía khách
     const quantity = lines.reduce((s, l) => s + l.qty, 0);
-    const { total, parts } = computePricing(variants, product.price, quantity);
+    const { total, unitPrice, tierQty } = computePricing(variants, product.price, quantity);
 
     const baseData = {
       productId: d.productId,
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       phone: d.phone,
       address: d.address,
       attributes: lines as unknown as object,
-      comboQty: null,
+      comboQty: tierQty > 1 ? tierQty : null,
       price: total,
       quantity,
       source: d.source || null
@@ -90,10 +90,8 @@ export async function POST(req: NextRequest) {
     }
 
     const attrLine = linesToText(lines);
-    const comboNote = parts
-      .filter((p) => p.qty > 1)
-      .map((p) => `${p.count} × combo ${p.qty}`)
-      .join(" + ");
+    const comboNote =
+      tierQty > 1 ? `${unitPrice.toLocaleString("vi-VN")}đ/cái, mốc từ ${tierQty} cái` : "";
 
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -148,7 +146,7 @@ export async function POST(req: NextRequest) {
       console.error("Ghi Google Sheet lỗi:", err);
     }
 
-    return NextResponse.json({ ok: true, code, quantity, total, parts, orderId: order.id });
+    return NextResponse.json({ ok: true, code, quantity, total, unitPrice, tierQty, orderId: order.id });
   } catch (err) {
     console.error("Lỗi tạo đơn hàng:", err);
     return NextResponse.json({ error: "server error" }, { status: 500 });

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Receipt, { ReceiptData } from "./Receipt";
 import {
   computePricing,
+  normalizeTiers,
+  tierRangeLabel,
   mergeLines,
   MAX_LINE_QTY,
   MAX_TOTAL_QTY,
@@ -33,7 +35,6 @@ export default function OrderForm({
   shopName: string;
 }) {
   const hasAttrs = attributes.length > 0;
-  const hasCombo = variants.length > 0;
 
   const defaultAttrs = () => Object.fromEntries(attributes.map((a) => [a.name, a.values[0] || ""]));
 
@@ -44,8 +45,9 @@ export default function OrderForm({
 
   const totalQty = lines.reduce((s, l) => s + l.qty, 0);
   const pricing = useMemo(() => computePricing(variants, basePrice, totalQty), [variants, basePrice, totalQty]);
-  const comboParts = pricing.parts.filter((p) => p.qty > 1);
-  const sortedVariants = useMemo(() => [...variants].sort((a, b) => a.qty - b.qty), [variants]);
+  const tiers = useMemo(() => normalizeTiers(variants, basePrice), [variants, basePrice]);
+  const hasTiers = tiers.length > 1;
+  const retailPrice = tiers[0].unitPrice;
 
   function updateLine(i: number, patch: Partial<OrderLine>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -110,10 +112,10 @@ export default function OrderForm({
         lines: merged,
         quantity: result.quantity,
         total: result.total,
-        pricingNote: (result.parts as { qty: number; count: number }[] | undefined)
-          ?.filter((p) => p.qty > 1)
-          .map((p) => `${p.count} × combo ${p.qty} cái`)
-          .join(" + "),
+        pricingNote:
+          result.tierQty > 1
+            ? `${formatPrice(result.unitPrice)}/cái (mua từ ${result.tierQty} cái)`
+            : undefined,
         createdAt: new Date().toLocaleString("vi-VN")
       });
 
@@ -151,16 +153,32 @@ export default function OrderForm({
 
       <label style={{ marginTop: 14 }}>{hasAttrs ? "Chọn loại & số lượng *" : "Số lượng *"}</label>
 
-      {hasCombo && (
-        <p className="note" style={{ textAlign: "left", margin: "0 0 8px" }}>
-          Mua nhiều giá rẻ hơn:{" "}
-          {sortedVariants.map((v, i) => (
-            <span key={v.qty}>
-              {i > 0 && " · "}
-              <b>{v.qty === 1 ? "1 cái" : `Combo ${v.qty}`}</b> {formatPrice(v.price)}
-            </span>
-          ))}
-        </p>
+      {hasTiers && (
+        <div className="tier-box">
+          <div className="tier-title">Mua càng nhiều, giá mỗi cái càng rẻ</div>
+          <div className="tier-strip">
+            {tiers.map((t, i) => {
+              const active = totalQty > 0 && t.qty === pricing.tierQty;
+              const off = Math.round((1 - t.unitPrice / retailPrice) * 100);
+              return (
+                <div key={t.qty} className={"tier-item" + (active ? " tier-active" : "")}>
+                  <span className="tier-range">{tierRangeLabel(tiers, i)}</span>
+                  <b className="tier-price">{formatPrice(t.unitPrice)}</b>
+                  <span className="tier-unit">/cái</span>
+                  {off > 0 && <span className="tier-off">Giảm {off}%</span>}
+                </div>
+              );
+            })}
+          </div>
+          {pricing.nextTier ? (
+            <p className="tier-hint">
+              Mua thêm <b>{pricing.nextTier.needMore} cái</b> để giảm còn{" "}
+              <b>{formatPrice(pricing.nextTier.unitPrice)}/cái</b>
+            </p>
+          ) : (
+            <p className="tier-hint tier-hint-ok">Bạn đang được giá tốt nhất</p>
+          )}
+        </div>
       )}
 
       {lines.map((line, i) => (
@@ -223,9 +241,10 @@ export default function OrderForm({
       <div className="total-box">
         <span>
           Tổng tiền ({totalQty} cái)
-          {comboParts.length > 0 && (
+          {hasTiers && (
             <small style={{ display: "block", marginTop: 2 }}>
-              Áp dụng {comboParts.map((p) => `${p.count} × combo ${p.qty}`).join(" + ")}
+              {formatPrice(pricing.unitPrice)}/cái
+              {pricing.savings > 0 && ` · tiết kiệm ${formatPrice(pricing.savings)}`}
             </small>
           )}
         </span>

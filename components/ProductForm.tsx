@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Attribute = { name: string; values: string };
-type Combo = { qty: string; price: string };
+type Combo = { qty: string; unitPrice: string };
 type Review = { name: string; rating: string; text: string; images: string };
 
 type Product = {
@@ -17,7 +17,7 @@ type Product = {
   images?: string[];
   video?: string | null;
   attributes?: { name: string; values: string[] }[];
-  variants?: { qty: number; price: number }[];
+  variants?: { qty: number; unitPrice?: number; price?: number }[];
   reviews?: { name: string; rating: number; text: string; images?: string[] }[];
   active?: boolean;
 };
@@ -35,7 +35,10 @@ export default function ProductForm({ product }: { product?: Product }) {
   );
   const [combos, setCombos] = useState<Combo[]>(
     product?.variants?.length
-      ? product.variants.map((v) => ({ qty: String(v.qty), price: String(v.price) }))
+      ? product.variants.map((v) => ({
+          qty: String(v.qty),
+          unitPrice: String(v.unitPrice ?? Math.round(Number(v.price) / v.qty))
+        }))
       : []
   );
   const [reviews, setReviews] = useState<Review[]>(
@@ -57,7 +60,7 @@ export default function ProductForm({ product }: { product?: Product }) {
   function removeAttr(i: number) {
     setAttrs((prev) => prev.filter((_, idx) => idx !== i));
   }
-  function updateCombo(i: number, field: "qty" | "price", value: string) {
+  function updateCombo(i: number, field: "qty" | "unitPrice", value: string) {
     setCombos((prev) => prev.map((c, idx) => (idx === i ? { ...c, [field]: value } : c)));
   }
   function removeCombo(i: number) {
@@ -87,8 +90,9 @@ export default function ProductForm({ product }: { product?: Product }) {
         .map((a) => ({ name: a.name.trim(), values: a.values.split(",").map((v) => v.trim()).filter(Boolean) }))
         .filter((a) => a.name && a.values.length > 0),
       variants: combos
-        .map((c) => ({ qty: Number(c.qty), price: Number(c.price) }))
-        .filter((c) => c.qty > 0 && c.price > 0),
+        .map((c) => ({ qty: Math.floor(Number(c.qty)), unitPrice: Number(c.unitPrice) }))
+        .filter((c) => c.qty > 1 && c.unitPrice > 0)
+        .sort((a, b) => a.qty - b.qty),
       reviews: reviews
         .map((r) => ({
           name: r.name.trim(),
@@ -144,7 +148,7 @@ export default function ProductForm({ product }: { product?: Product }) {
         </div>
       </div>
       <p className="note" style={{ textAlign: "left" }}>
-        Giá này chỉ dùng khi sản phẩm KHÔNG có combo (mục bên dưới). Nếu có combo, khách sẽ chọn giá theo combo.
+        Đây là giá lẻ khi khách mua 1 cái. Muốn giảm giá khi mua nhiều, thêm mốc giá ở mục bên dưới.
       </p>
 
       <label>Mô tả sản phẩm</label>
@@ -193,19 +197,19 @@ export default function ProductForm({ product }: { product?: Product }) {
       </button>
 
       {/* Combo: số lượng + giá */}
-      <label style={{ marginTop: 24 }}>Combo (không bắt buộc)</label>
+      <label style={{ marginTop: 24 }}>Mốc giá theo số lượng (không bắt buộc)</label>
       <p className="note" style={{ textAlign: "left", marginTop: 0 }}>
-        Ví dụ: 1 cái giá 599.000đ, 2 cái giá 1.090.000đ... Khách chọn combo thay vì tự nhập số lượng.
+        Ví dụ: từ 2 cái giá 38.000đ/cái, từ 3 cái giá 33.000đ/cái. Khi khách mua đủ số lượng, TOÀN BỘ đơn được tính theo đơn giá mới (số lượng cộng dồn tất cả các loại). Mốc 1 cái dùng "Giá bán mặc định" ở trên.
       </p>
       {combos.map((c, i) => (
         <div key={i} className="row" style={{ alignItems: "flex-end" }}>
           <div>
-            <label>Số lượng (cái)</label>
+            <label>Từ số lượng (cái)</label>
             <input type="number" min="1" value={c.qty} onChange={(e) => updateCombo(i, "qty", e.target.value)} placeholder="2" />
           </div>
           <div>
-            <label>Giá cho combo này</label>
-            <input type="number" value={c.price} onChange={(e) => updateCombo(i, "price", e.target.value)} placeholder="1090000" />
+            <label>Đơn giá mỗi cái (đ)</label>
+            <input type="number" value={c.unitPrice} onChange={(e) => updateCombo(i, "unitPrice", e.target.value)} placeholder="38000" />
           </div>
           <button type="button" onClick={() => removeCombo(i)} className="btn btn-danger" style={{ marginBottom: 14 }}>
             Xóa
@@ -215,9 +219,9 @@ export default function ProductForm({ product }: { product?: Product }) {
       <button
         type="button"
         className="btn btn-outline"
-        onClick={() => setCombos((prev) => [...prev, { qty: "", price: "" }])}
+        onClick={() => setCombos((prev) => [...prev, { qty: "", unitPrice: "" }])}
       >
-        + Thêm combo
+        + Thêm mốc giá
       </button>
 
       {/* Đánh giá thật */}
