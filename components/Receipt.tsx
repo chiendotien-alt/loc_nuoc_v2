@@ -8,10 +8,10 @@ export type ReceiptData = {
   phone: string;
   address: string;
   productName: string;
-  attributesSelected: Record<string, string>[];
+  lines: { attrs: Record<string, string>; qty: number }[];
   quantity: number;
-  price: number;
   total: number;
+  pricingNote?: string;
   createdAt: string;
 };
 
@@ -40,10 +40,6 @@ export default function Receipt({ data, shopName }: { data: ReceiptData; shopNam
     }
   }
 
-  const units = data.attributesSelected || [];
-  const showPerUnit = units.length > 1 && units.some((u) => Object.keys(u || {}).length > 0);
-  const sharedEntries = !showPerUnit ? Object.entries(units[0] || {}).filter(([, v]) => v) : [];
-
   return (
     <div style={{ marginTop: 14 }}>
       <div ref={ref} className="receipt">
@@ -69,31 +65,25 @@ export default function Receipt({ data, shopName }: { data: ReceiptData; shopNam
           <span>Sản phẩm</span>
           <b>{data.productName}</b>
         </div>
-        {sharedEntries.map(([k, v]) => (
-          <div className="receipt-row" key={k}>
-            <span>{k}</span>
-            <b>{v}</b>
-          </div>
-        ))}
-        {showPerUnit &&
-          units.map((u, i) => {
-            const entries = Object.entries(u || {}).filter(([, v]) => v);
-            if (entries.length === 0) return null;
-            return (
-              <div className="receipt-row" key={i}>
-                <span>Cái {i + 1}</span>
-                <b>{entries.map(([, v]) => v).join(" · ")}</b>
-              </div>
-            );
-          })}
+        {data.lines.map((l, i) => {
+          const vals = Object.values(l.attrs || {}).filter(Boolean);
+          return (
+            <div className="receipt-row" key={i}>
+              <span>{vals.length ? vals.join(" · ") : `Loại ${i + 1}`}</span>
+              <b>× {l.qty}</b>
+            </div>
+          );
+        })}
         <div className="receipt-row">
-          <span>Số lượng</span>
+          <span>Tổng số lượng</span>
           <b>{data.quantity}</b>
         </div>
-        <div className="receipt-row">
-          <span>Đơn giá</span>
-          <b>{formatPrice(data.price)}</b>
-        </div>
+        {data.pricingNote && (
+          <div className="receipt-row">
+            <span>Giá áp dụng</span>
+            <b>{data.pricingNote}</b>
+          </div>
+        )}
         <hr />
         <div className="receipt-row receipt-total">
           <span>Tổng tiền</span>

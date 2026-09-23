@@ -40,7 +40,7 @@ export default function Gallery({ images, video }: { images: string[]; video?: s
     return (
       <div className="carousel">
         <div className="slide">
-          <img src="https://placehold.co/560x700?text=San+pham" alt="" />
+          <img src="https://placehold.co/1092x1092?text=San+pham" alt="" />
         </div>
       </div>
     );

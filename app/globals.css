@@ -41,8 +41,8 @@ th{background:var(--soft)}
   border-radius:var(--radius);-webkit-overflow-scrolling:touch;scrollbar-width:none;box-shadow:var(--shadow);
 }
 .carousel::-webkit-scrollbar{display:none}
-.carousel .slide{flex:0 0 100%;scroll-snap-align:start;aspect-ratio:4/5;background:var(--soft);overflow:hidden}
-.carousel .slide img,.carousel .slide video{width:100%;height:100%;object-fit:cover;display:block}
+.carousel .slide{flex:0 0 100%;scroll-snap-align:start;aspect-ratio:1/1;background:#fff;overflow:hidden}
+.carousel .slide img,.carousel .slide video{width:100%;height:100%;object-fit:contain;display:block}
 
 /* Dải thumbnail dưới gallery */
 .thumb-strip{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
@@ -88,8 +88,18 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
   border-radius:12px;padding:12px 16px;cursor:pointer;font-weight:400;transition:border-color .15s,background .15s}
 .combo-option-active{border-color:var(--accent);background:#fdf1f0}
 
-/* Chọn thuộc tính riêng từng sản phẩm khi mua nhiều */
+/* Mỗi dòng = 1 loại thuộc tính + số lượng riêng */
 .unit-card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--soft)}
+.line-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.line-remove{background:none;border:0;color:#c62828;font-size:13px;cursor:pointer;padding:4px 6px}
+.qty-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:14px;color:var(--muted)}
+.qty-stepper{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.qty-stepper button{width:40px;height:40px;border:0;background:#fff;font-size:20px;line-height:1;cursor:pointer;color:var(--fg)}
+.qty-stepper button:disabled{opacity:.35;cursor:not-allowed}
+.qty-stepper input{width:52px;height:40px;text-align:center;border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);
+  border-radius:0;margin:0;padding:0;font-size:16px;font-weight:600;-moz-appearance:textfield}
+.qty-stepper input::-webkit-outer-spin-button,.qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.add-line{width:100%;margin-bottom:4px}
 
 /* Tổng tiền */
 .total-box{display:flex;justify-content:space-between;align-items:center;background:var(--soft);
@@ -104,7 +114,7 @@ footer{background:var(--soft);padding:22px 0;margin-top:34px;font-size:13.5px;co
 .card{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;text-decoration:none;
   color:inherit;background:#fff;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
 .card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
-.card img{aspect-ratio:3/4;object-fit:cover;background:var(--soft)}
+.card img{width:100%;aspect-ratio:1/1;object-fit:contain;background:#fff}
 .card .info{padding:11px 12px}
 .card .name{font-size:13.5px;font-weight:600;min-height:36px;line-height:1.35}
 .card .p{color:var(--accent);font-weight:800;margin-top:5px;font-size:15px}

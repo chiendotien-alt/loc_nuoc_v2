@@ -29,7 +29,7 @@ export default async function HomePage() {
       <div className="grid">
         {products.map((p) => (
           <Link key={p.id} href={`/p/${p.slug}`} className="card">
-            <img src={p.images[0] || "https://placehold.co/300x400?text=San+pham"} alt={p.name} />
+            <img src={p.images[0] || "https://placehold.co/600x600?text=San+pham"} alt={p.name} />
             <div className="info">
               <div className="name">{p.name}</div>
               <div className="p">{formatPrice(p.price)}</div>

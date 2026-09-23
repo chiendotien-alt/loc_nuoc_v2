@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   if (!product) return {};
 
   const shopName = process.env.NEXT_PUBLIC_SHOP_NAME || "Đồ Gia Dụng Shop";
-  const image = product.images[0] || "https://placehold.co/560x700?text=San+pham";
+  const image = product.images[0] || "https://placehold.co/1092x1092?text=San+pham";
   const description = `${formatPrice(product.price)} · ${product.description.slice(0, 120)}`;
 
   return {
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     openGraph: {
       title: product.name,
       description,
-      images: [{ url: image, width: 560, height: 700 }],
+      images: [{ url: image, width: 1092, height: 1092 }],
       type: "website"
     },
     twitter: {

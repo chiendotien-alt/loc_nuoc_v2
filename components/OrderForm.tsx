@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import Receipt, { ReceiptData } from "./Receipt";
+import {
+  computePricing,
+  mergeLines,
+  MAX_LINE_QTY,
+  MAX_TOTAL_QTY,
+  type OrderLine,
+  type Variant
+} from "@/lib/pricing";
 
 type Attribute = { name: string; values: string[] };
-type Variant = { qty: number; price: number };
 
 function formatPrice(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
 }
-
-const MAX_PER_UNIT = 10;
 
 export default function OrderForm({
   productId,
@@ -27,39 +32,47 @@ export default function OrderForm({
   variants: Variant[];
   shopName: string;
 }) {
+  const hasAttrs = attributes.length > 0;
   const hasCombo = variants.length > 0;
+
+  const defaultAttrs = () => Object.fromEntries(attributes.map((a) => [a.name, a.values[0] || ""]));
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const [lines, setLines] = useState<OrderLine[]>([{ attrs: defaultAttrs(), qty: 1 }]);
 
-  const [selectedCombo, setSelectedCombo] = useState<number>(variants[0]?.qty || 0);
-  const [quantity, setQuantity] = useState(1);
+  const totalQty = lines.reduce((s, l) => s + l.qty, 0);
+  const pricing = useMemo(() => computePricing(variants, basePrice, totalQty), [variants, basePrice, totalQty]);
+  const comboParts = pricing.parts.filter((p) => p.qty > 1);
+  const sortedVariants = useMemo(() => [...variants].sort((a, b) => a.qty - b.qty), [variants]);
 
-  const unitsCount = hasCombo ? selectedCombo : quantity;
-  const perUnitMode = attributes.length > 0 && unitsCount > 1 && unitsCount <= MAX_PER_UNIT;
+  function updateLine(i: number, patch: Partial<OrderLine>) {
+    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  }
 
-  const defaultAttrs = () => Object.fromEntries(attributes.map((a) => [a.name, a.values[0] || ""]));
+  function setLineAttr(i: number, name: string, value: string) {
+    setLines((prev) =>
+      prev.map((l, idx) => (idx === i ? { ...l, attrs: { ...l.attrs, [name]: value } } : l))
+    );
+  }
 
-  // Lựa chọn thuộc tính chung (khi không cần chọn riêng từng cái)
-  const [sharedAttrs, setSharedAttrs] = useState<Record<string, string>>(defaultAttrs());
-  // Lựa chọn thuộc tính riêng cho từng cái (khi mua nhiều, mỗi cái 1 biến thể)
-  const [perUnitAttrs, setPerUnitAttrs] = useState<Record<string, string>[]>([]);
+  function setLineQty(i: number, raw: number) {
+    setLines((prev) => {
+      const others = prev.reduce((s, l, idx) => (idx === i ? s : s + l.qty), 0);
+      const max = Math.min(MAX_LINE_QTY, MAX_TOTAL_QTY - others);
+      const qty = Math.min(Math.max(1, Math.floor(raw) || 1), Math.max(1, max));
+      return prev.map((l, idx) => (idx === i ? { ...l, qty } : l));
+    });
+  }
 
-  useEffect(() => {
-    if (perUnitMode) {
-      setPerUnitAttrs((prev) => {
-        const next = [...prev];
-        while (next.length < unitsCount) next.push(defaultAttrs());
-        next.length = unitsCount;
-        return next;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [perUnitMode, unitsCount]);
+  function addLine() {
+    setLines((prev) => [...prev, { attrs: defaultAttrs(), qty: 1 }]);
+  }
 
-  const unitPrice = hasCombo ? variants.find((v) => v.qty === selectedCombo)?.price || basePrice : basePrice;
-  const total = hasCombo ? unitPrice : unitPrice * quantity;
+  function removeLine(i: number) {
+    setLines((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -68,17 +81,14 @@ export default function OrderForm({
 
     const form = e.currentTarget;
     const fd = Object.fromEntries(new FormData(form)) as Record<string, string>;
-
-    const attributesPerUnit = perUnitMode ? perUnitAttrs : Array(unitsCount || 1).fill(sharedAttrs);
+    const merged = mergeLines(lines);
 
     const payload = {
       productId,
       name: fd.name,
       phone: fd.phone,
       address: fd.address,
-      attributes: attributesPerUnit,
-      comboQty: hasCombo ? selectedCombo : null,
-      quantity: unitsCount,
+      lines: merged,
       source: typeof window !== "undefined" ? window.location.search || "truc-tiep" : ""
     };
 
@@ -97,15 +107,18 @@ export default function OrderForm({
         phone: fd.phone,
         address: fd.address,
         productName,
-        attributesSelected: attributesPerUnit,
-        quantity: unitsCount,
-        price: result.price,
+        lines: merged,
+        quantity: result.quantity,
         total: result.total,
+        pricingNote: (result.parts as { qty: number; count: number }[] | undefined)
+          ?.filter((p) => p.qty > 1)
+          .map((p) => `${p.count} × combo ${p.qty} cái`)
+          .join(" + "),
         createdAt: new Date().toLocaleString("vi-VN")
       });
 
       // @ts-ignore
-      if (window.fbq) window.fbq("track", "Purchase", { value: total, currency: "VND" });
+      if (window.fbq) window.fbq("track", "Purchase", { value: result.total, currency: "VND" });
     } catch {
       setError("Gửi đơn lỗi, bạn gọi hotline giúp shop nhé.");
     } finally {
@@ -127,31 +140,6 @@ export default function OrderForm({
 
   return (
     <form onSubmit={handleSubmit} id="order-form">
-      {hasCombo && (
-        <>
-          <label>Chọn combo *</label>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 4 }}>
-            {variants.map((v) => (
-              <label
-                key={v.qty}
-                className={`combo-option ${selectedCombo === v.qty ? "combo-option-active" : ""}`}
-              >
-                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="radio"
-                    checked={selectedCombo === v.qty}
-                    onChange={() => setSelectedCombo(v.qty)}
-                    style={{ width: "auto" }}
-                  />
-                  {v.qty === 1 ? "Mua 1 cái" : `Combo ${v.qty} cái`}
-                </span>
-                <b style={{ color: "var(--accent)" }}>{formatPrice(v.price)}</b>
-              </label>
-            ))}
-          </div>
-        </>
-      )}
-
       <label>Họ và tên *</label>
       <input name="name" required placeholder="Nguyễn Thị A" />
 
@@ -161,88 +149,87 @@ export default function OrderForm({
       <label>Địa chỉ nhận hàng *</label>
       <textarea name="address" rows={2} required placeholder="Số nhà, xã/phường, quận/huyện, tỉnh" />
 
-      {!hasCombo && (
-        <>
-          <label>Số lượng</label>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              type="number"
-              min="1"
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-              style={{ maxWidth: 100 }}
-            />
-            {[1, 2, 3].map((n) => (
-              <button
-                type="button"
-                key={n}
-                onClick={() => setQuantity(n)}
-                className={quantity === n ? "btn" : "btn btn-outline"}
-                style={{ padding: "9px 14px" }}
-              >
-                {n}
+      <label style={{ marginTop: 14 }}>{hasAttrs ? "Chọn loại & số lượng *" : "Số lượng *"}</label>
+
+      {hasCombo && (
+        <p className="note" style={{ textAlign: "left", margin: "0 0 8px" }}>
+          Mua nhiều giá rẻ hơn:{" "}
+          {sortedVariants.map((v, i) => (
+            <span key={v.qty}>
+              {i > 0 && " · "}
+              <b>{v.qty === 1 ? "1 cái" : `Combo ${v.qty}`}</b> {formatPrice(v.price)}
+            </span>
+          ))}
+        </p>
+      )}
+
+      {lines.map((line, i) => (
+        <div key={i} className="unit-card">
+          {(hasAttrs || lines.length > 1) && (
+            <div className="line-head">
+              <b>{hasAttrs ? `Loại ${i + 1}` : "Số lượng"}</b>
+              {lines.length > 1 && (
+                <button type="button" className="line-remove" onClick={() => removeLine(i)} aria-label={`Xoá loại ${i + 1}`}>
+                  Xoá
+                </button>
+              )}
+            </div>
+          )}
+
+          {hasAttrs && (
+            <div className="row" style={{ flexWrap: "wrap" }}>
+              {attributes.map((a) => (
+                <div key={a.name}>
+                  <label>{a.name}</label>
+                  <select value={line.attrs[a.name] || ""} onChange={(e) => setLineAttr(i, a.name, e.target.value)} required>
+                    {a.values.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="qty-row">
+            <span>Số lượng</span>
+            <div className="qty-stepper">
+              <button type="button" onClick={() => setLineQty(i, line.qty - 1)} disabled={line.qty <= 1} aria-label="Giảm">
+                −
               </button>
-            ))}
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_LINE_QTY}
+                value={line.qty}
+                onChange={(e) => setLineQty(i, Number(e.target.value))}
+                aria-label="Số lượng"
+              />
+              <button type="button" onClick={() => setLineQty(i, line.qty + 1)} disabled={totalQty >= MAX_TOTAL_QTY || line.qty >= MAX_LINE_QTY} aria-label="Tăng">
+                +
+              </button>
+            </div>
           </div>
-        </>
-      )}
-
-      {attributes.length > 0 && !perUnitMode && (
-        <div className="row" style={{ flexWrap: "wrap" }}>
-          {attributes.map((a) => (
-            <div key={a.name}>
-              <label>{a.name} *</label>
-              <select
-                value={sharedAttrs[a.name] || ""}
-                onChange={(e) => setSharedAttrs((prev) => ({ ...prev, [a.name]: e.target.value }))}
-                required
-              >
-                {a.values.map((v) => (
-                  <option key={v}>{v}</option>
-                ))}
-              </select>
-            </div>
-          ))}
         </div>
-      )}
+      ))}
 
-      {perUnitMode && (
-        <div style={{ marginTop: 10 }}>
-          <p className="note" style={{ textAlign: "left", margin: "0 0 8px" }}>
-            Bạn mua {unitsCount} cái — chọn riêng từng cái nếu muốn khác biến thể:
-          </p>
-          {Array.from({ length: unitsCount }).map((_, i) => (
-            <div key={i} className="unit-card">
-              <b>Sản phẩm {i + 1}</b>
-              <div className="row" style={{ flexWrap: "wrap", marginTop: 6 }}>
-                {attributes.map((a) => (
-                  <div key={a.name}>
-                    <label>{a.name}</label>
-                    <select
-                      value={perUnitAttrs[i]?.[a.name] || a.values[0] || ""}
-                      onChange={(e) =>
-                        setPerUnitAttrs((prev) => {
-                          const next = [...prev];
-                          next[i] = { ...next[i], [a.name]: e.target.value };
-                          return next;
-                        })
-                      }
-                    >
-                      {a.values.map((v) => (
-                        <option key={v}>{v}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+      {hasAttrs && (
+        <button type="button" className="btn btn-outline add-line" onClick={addLine} disabled={totalQty >= MAX_TOTAL_QTY}>
+          + Thêm loại khác
+        </button>
       )}
 
       <div className="total-box">
-        <span>Tổng tiền</span>
-        <b>{formatPrice(total)}</b>
+        <span>
+          Tổng tiền ({totalQty} cái)
+          {comboParts.length > 0 && (
+            <small style={{ display: "block", marginTop: 2 }}>
+              Áp dụng {comboParts.map((p) => `${p.count} × combo ${p.qty}`).join(" + ")}
+            </small>
+          )}
+        </span>
+        <b>{formatPrice(pricing.total)}</b>
       </div>
 
       <button type="submit" className="cta" disabled={sending}>

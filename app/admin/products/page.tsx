@@ -28,9 +28,9 @@ export default async function AdminProductsPage() {
           <div className="admin-row" key={p.id}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <img
-                src={p.images[0] || "https://placehold.co/60x80"}
+                src={p.images[0] || "https://placehold.co/60x60"}
                 alt=""
-                style={{ width: 44, height: 58, objectFit: "cover", borderRadius: 4 }}
+                style={{ width: 56, height: 56, objectFit: "contain", background: "#fff", borderRadius: 4 }}
               />
               <div>
                 <div style={{ fontWeight: 600 }}>{p.name}</div>
