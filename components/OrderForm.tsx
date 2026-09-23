@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Receipt, { ReceiptData } from "./Receipt";
 
 type Attribute = { name: string; values: string[] };
@@ -9,6 +9,8 @@ type Variant = { qty: number; price: number };
 function formatPrice(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
 }
+
+const MAX_PER_UNIT = 10;
 
 export default function OrderForm({
   productId,
@@ -33,12 +35,30 @@ export default function OrderForm({
 
   const [selectedCombo, setSelectedCombo] = useState<number>(variants[0]?.qty || 0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>(
-    Object.fromEntries(attributes.map((a) => [a.name, a.values[0] || ""]))
-  );
+
+  const unitsCount = hasCombo ? selectedCombo : quantity;
+  const perUnitMode = attributes.length > 0 && unitsCount > 1 && unitsCount <= MAX_PER_UNIT;
+
+  const defaultAttrs = () => Object.fromEntries(attributes.map((a) => [a.name, a.values[0] || ""]));
+
+  // Lựa chọn thuộc tính chung (khi không cần chọn riêng từng cái)
+  const [sharedAttrs, setSharedAttrs] = useState<Record<string, string>>(defaultAttrs());
+  // Lựa chọn thuộc tính riêng cho từng cái (khi mua nhiều, mỗi cái 1 biến thể)
+  const [perUnitAttrs, setPerUnitAttrs] = useState<Record<string, string>[]>([]);
+
+  useEffect(() => {
+    if (perUnitMode) {
+      setPerUnitAttrs((prev) => {
+        const next = [...prev];
+        while (next.length < unitsCount) next.push(defaultAttrs());
+        next.length = unitsCount;
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perUnitMode, unitsCount]);
 
   const unitPrice = hasCombo ? variants.find((v) => v.qty === selectedCombo)?.price || basePrice : basePrice;
-  const finalQty = hasCombo ? selectedCombo : quantity;
   const total = hasCombo ? unitPrice : unitPrice * quantity;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -49,14 +69,16 @@ export default function OrderForm({
     const form = e.currentTarget;
     const fd = Object.fromEntries(new FormData(form)) as Record<string, string>;
 
+    const attributesPerUnit = perUnitMode ? perUnitAttrs : Array(unitsCount || 1).fill(sharedAttrs);
+
     const payload = {
       productId,
       name: fd.name,
       phone: fd.phone,
       address: fd.address,
-      attributes: selectedAttrs,
+      attributes: attributesPerUnit,
       comboQty: hasCombo ? selectedCombo : null,
-      quantity: finalQty,
+      quantity: unitsCount,
       source: typeof window !== "undefined" ? window.location.search || "truc-tiep" : ""
     };
 
@@ -75,8 +97,8 @@ export default function OrderForm({
         phone: fd.phone,
         address: fd.address,
         productName,
-        attributesSelected: selectedAttrs,
-        quantity: finalQty,
+        attributesSelected: attributesPerUnit,
+        quantity: unitsCount,
         price: result.price,
         total: result.total,
         createdAt: new Date().toLocaleString("vi-VN")
@@ -104,7 +126,7 @@ export default function OrderForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} id="order-form">
       {hasCombo && (
         <>
           <label>Chọn combo *</label>
@@ -112,16 +134,7 @@ export default function OrderForm({
             {variants.map((v) => (
               <label
                 key={v.qty}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  border: `2px solid ${selectedCombo === v.qty ? "var(--accent)" : "var(--line)"}`,
-                  borderRadius: 8,
-                  padding: "10px 14px",
-                  cursor: "pointer",
-                  fontWeight: 400
-                }}
+                className={`combo-option ${selectedCombo === v.qty ? "combo-option-active" : ""}`}
               >
                 <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <input
@@ -147,25 +160,6 @@ export default function OrderForm({
 
       <label>Địa chỉ nhận hàng *</label>
       <textarea name="address" rows={2} required placeholder="Số nhà, xã/phường, quận/huyện, tỉnh" />
-
-      {attributes.length > 0 && (
-        <div className="row" style={{ flexWrap: "wrap" }}>
-          {attributes.map((a) => (
-            <div key={a.name}>
-              <label>{a.name} *</label>
-              <select
-                value={selectedAttrs[a.name] || ""}
-                onChange={(e) => setSelectedAttrs((prev) => ({ ...prev, [a.name]: e.target.value }))}
-                required
-              >
-                {a.values.map((v) => (
-                  <option key={v}>{v}</option>
-                ))}
-              </select>
-            </div>
-          ))}
-        </div>
-      )}
 
       {!hasCombo && (
         <>
@@ -193,26 +187,69 @@ export default function OrderForm({
         </>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: "var(--soft)",
-          borderRadius: 8,
-          padding: "12px 16px",
-          margin: "16px 0"
-        }}
-      >
+      {attributes.length > 0 && !perUnitMode && (
+        <div className="row" style={{ flexWrap: "wrap" }}>
+          {attributes.map((a) => (
+            <div key={a.name}>
+              <label>{a.name} *</label>
+              <select
+                value={sharedAttrs[a.name] || ""}
+                onChange={(e) => setSharedAttrs((prev) => ({ ...prev, [a.name]: e.target.value }))}
+                required
+              >
+                {a.values.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {perUnitMode && (
+        <div style={{ marginTop: 10 }}>
+          <p className="note" style={{ textAlign: "left", margin: "0 0 8px" }}>
+            Bạn mua {unitsCount} cái — chọn riêng từng cái nếu muốn khác biến thể:
+          </p>
+          {Array.from({ length: unitsCount }).map((_, i) => (
+            <div key={i} className="unit-card">
+              <b>Sản phẩm {i + 1}</b>
+              <div className="row" style={{ flexWrap: "wrap", marginTop: 6 }}>
+                {attributes.map((a) => (
+                  <div key={a.name}>
+                    <label>{a.name}</label>
+                    <select
+                      value={perUnitAttrs[i]?.[a.name] || a.values[0] || ""}
+                      onChange={(e) =>
+                        setPerUnitAttrs((prev) => {
+                          const next = [...prev];
+                          next[i] = { ...next[i], [a.name]: e.target.value };
+                          return next;
+                        })
+                      }
+                    >
+                      {a.values.map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="total-box">
         <span>Tổng tiền</span>
-        <b style={{ fontSize: 20, color: "var(--accent)" }}>{formatPrice(total)}</b>
+        <b>{formatPrice(total)}</b>
       </div>
 
       <button type="submit" className="cta" disabled={sending}>
-        {sending ? "Đang gửi..." : "ĐẶT HÀNG - THANH TOÁN KHI NHẬN"}
+        {sending ? "Đang gửi..." : "Mua ngay"}
       </button>
       {error && <p className="note" style={{ color: "#c62828" }}>{error}</p>}
-      <p className="note">Shop gọi xác nhận trước khi giao. Giao 3-5 ngày.</p>
+      <p className="note">Thanh toán khi nhận hàng · Shop gọi xác nhận trước khi giao.</p>
     </form>
   );
 }

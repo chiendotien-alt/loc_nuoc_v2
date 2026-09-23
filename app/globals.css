@@ -1,105 +1,148 @@
 :root{
-  --bg:#fff; --fg:#1a1a1a; --muted:#6b6b6b; --line:#e8e4de;
-  --accent:#b4342f; --accent2:#8f2925; --soft:#faf7f3;
+  --bg:#fff; --fg:#181818; --muted:#767066; --line:#e9e4dc;
+  --accent:#b4342f; --accent2:#8f2925; --soft:#faf7f2;
+  --radius:14px; --shadow:0 2px 10px rgba(20,15,10,.06); --shadow-lg:0 8px 28px rgba(20,15,10,.14);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--fg);background:var(--bg)}
+body{font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--fg);background:var(--bg);-webkit-font-smoothing:antialiased}
 img{max-width:100%;display:block}
 a{color:inherit}
 
 .wrap{max-width:560px;margin:0 auto;padding:0 16px}
 .wrap-wide{max-width:960px;margin:0 auto;padding:0 16px}
 
-h1{font-size:24px;line-height:1.3;margin:14px 0 8px;font-weight:700}
-h2{font-size:19px;margin:28px 0 12px;font-weight:700}
+h1{font-size:22px;line-height:1.35;margin:16px 0 8px;font-weight:800;letter-spacing:-.2px}
+h2{font-size:18px;margin:30px 0 12px;font-weight:800;letter-spacing:-.2px}
 
-.price{display:flex;align-items:baseline;gap:10px;margin:10px 0}
-.new{font-size:30px;font-weight:800;color:var(--accent)}
-.old{text-decoration:line-through;color:var(--muted);font-size:17px}
-.tag{background:var(--accent);color:#fff;font-size:13px;padding:2px 8px;border-radius:4px}
+.price{display:flex;align-items:baseline;gap:10px;margin:8px 0 14px}
+.new{font-size:28px;font-weight:800;color:var(--accent)}
+.old{text-decoration:line-through;color:var(--muted);font-size:16px}
+.tag{background:var(--accent);color:#fff;font-size:12px;font-weight:700;padding:3px 9px;border-radius:6px}
 
-.cta{display:block;width:100%;background:var(--accent);color:#fff;border:0;border-radius:8px;
-  padding:16px;font-size:18px;font-weight:700;text-align:center;cursor:pointer;text-decoration:none}
-.cta:disabled{opacity:.6}
+.cta{display:block;width:100%;background:linear-gradient(180deg,var(--accent),var(--accent2));
+  color:#fff;border:0;border-radius:12px;padding:16px;font-size:17px;font-weight:800;
+  text-align:center;cursor:pointer;text-decoration:none;letter-spacing:.2px;
+  box-shadow:0 6px 16px rgba(180,52,47,.32);transition:transform .12s ease, box-shadow .12s ease}
+.cta:active{transform:translateY(1px) scale(.99);box-shadow:0 3px 10px rgba(180,52,47,.28)}
+.cta:disabled{opacity:.55;box-shadow:none}
 
-.trust{list-style:none;background:var(--soft);border-radius:10px;padding:16px;margin:18px 0}
-.trust li{padding-left:24px;position:relative;margin:7px 0;font-size:15px}
-.trust li:before{content:"✓";position:absolute;left:0;color:#2e7d32;font-weight:700}
+.trust{list-style:none;background:var(--soft);border-radius:var(--radius);padding:16px 18px;margin:18px 0;border:1px solid var(--line)}
+.trust li{padding-left:26px;position:relative;margin:8px 0;font-size:14.5px}
+.trust li:before{content:"✓";position:absolute;left:0;top:0;color:#fff;font-weight:800;font-size:11px;
+  background:#2e9143;width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 
 table{width:100%;border-collapse:collapse;font-size:15px}
 th,td{border:1px solid var(--line);padding:9px;text-align:left}
 th{background:var(--soft)}
 
-.gallery{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.gallery img{border-radius:8px;width:100%;aspect-ratio:3/4;object-fit:cover;background:var(--soft)}
-
 /* Carousel vuốt ngang cho ảnh + video sản phẩm */
 .carousel{
-  display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:8px;
-  border-radius:10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+  display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:0;
+  border-radius:var(--radius);-webkit-overflow-scrolling:touch;scrollbar-width:none;box-shadow:var(--shadow);
 }
 .carousel::-webkit-scrollbar{display:none}
-.carousel .slide{flex:0 0 100%;scroll-snap-align:start;aspect-ratio:4/5;background:var(--soft);border-radius:10px;overflow:hidden}
+.carousel .slide{flex:0 0 100%;scroll-snap-align:start;aspect-ratio:4/5;background:var(--soft);overflow:hidden}
 .carousel .slide img,.carousel .slide video{width:100%;height:100%;object-fit:cover;display:block}
 
-/* Khối chính sách bán hàng dạng 3 thẻ icon */
-.policy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:20px 0}
-.policy-card{
-  background:#8b93a1;color:#fff;border-radius:14px;padding:14px 8px;
-  text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px;
-}
-.policy-icon{font-size:26px;margin-bottom:2px}
-.policy-card b{font-size:13px;line-height:1.3}
-.policy-card span{font-size:11px;line-height:1.35;opacity:.9}
+/* Dải thumbnail dưới gallery */
+.thumb-strip{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.thumb-strip::-webkit-scrollbar{display:none}
+.thumb{flex:0 0 58px;width:58px;height:58px;border-radius:9px;overflow:hidden;border:2px solid transparent;
+  padding:0;cursor:pointer;background:var(--soft);position:relative;opacity:.65;transition:opacity .15s,border-color .15s}
+.thumb img,.thumb video{width:100%;height:100%;object-fit:cover}
+.thumb-active{border-color:var(--accent);opacity:1}
+.thumb-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:14px;background:rgba(0,0,0,.28)}
 
-label{display:block;font-size:14px;font-weight:600;margin:14px 0 5px}
-input,select,textarea{width:100%;padding:13px;border:1px solid var(--line);border-radius:8px;font-size:16px;font-family:inherit}
+/* Khối chính sách bán hàng dạng 3 thẻ icon */
+.policy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:22px 0}
+.policy-card{
+  background:linear-gradient(160deg,#9aa1ae,#7d8492);color:#fff;border-radius:var(--radius);padding:16px 8px 14px;
+  text-align:center;display:flex;flex-direction:column;align-items:center;gap:5px;box-shadow:var(--shadow);
+}
+.policy-icon{font-size:22px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.18);
+  display:flex;align-items:center;justify-content:center;margin-bottom:2px}
+.policy-card b{font-size:12.5px;line-height:1.3}
+.policy-card span{font-size:10.5px;line-height:1.35;opacity:.9}
+
+/* Đánh giá khách hàng */
+.review-summary{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.review-summary>b{font-size:22px}
+.stars{color:#f5a623;font-size:16px;letter-spacing:1px}
+.review-card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;background:var(--soft)}
+.review-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.review-card p{font-size:14.5px;color:#3a352e}
+.review-images{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
+.review-images img{width:64px;height:64px;flex:0 0 64px;object-fit:cover;border-radius:8px;background:var(--line)}
+
+label{display:block;font-size:13.5px;font-weight:700;margin:14px 0 6px;color:#3a352e}
+input,select,textarea{width:100%;padding:12px 13px;border:1.5px solid var(--line);border-radius:10px;
+  font-size:16px;font-family:inherit;background:#fff;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
 .row{display:flex;gap:10px}
 .row>div{flex:1}
-.note{font-size:13px;color:var(--muted);margin-top:10px;text-align:center}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;text-align:center;line-height:1.5}
 
-footer{background:var(--soft);padding:22px 0;margin-top:30px;font-size:14px;color:var(--muted);text-align:center}
+/* Chọn combo */
+.combo-option{display:flex;justify-content:space-between;align-items:center;border:2px solid var(--line);
+  border-radius:12px;padding:12px 16px;cursor:pointer;font-weight:400;transition:border-color .15s,background .15s}
+.combo-option-active{border-color:var(--accent);background:#fdf1f0}
+
+/* Chọn thuộc tính riêng từng sản phẩm khi mua nhiều */
+.unit-card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--soft)}
+
+/* Tổng tiền */
+.total-box{display:flex;justify-content:space-between;align-items:center;background:var(--soft);
+  border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:18px 0}
+.total-box span{font-size:14px;color:var(--muted)}
+.total-box b{font-size:21px;color:var(--accent)}
+
+footer{background:var(--soft);padding:22px 0;margin-top:34px;font-size:13.5px;color:var(--muted);text-align:center}
 
 /* Trang chủ - lưới sản phẩm */
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}
-.card{border:1px solid var(--line);border-radius:10px;overflow:hidden;text-decoration:none;color:inherit}
+.card{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;text-decoration:none;
+  color:inherit;background:#fff;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
 .card img{aspect-ratio:3/4;object-fit:cover;background:var(--soft)}
-.card .info{padding:10px}
-.card .name{font-size:14px;font-weight:600;min-height:38px}
-.card .p{color:var(--accent);font-weight:700;margin-top:4px}
+.card .info{padding:11px 12px}
+.card .name{font-size:13.5px;font-weight:600;min-height:36px;line-height:1.35}
+.card .p{color:var(--accent);font-weight:800;margin-top:5px;font-size:15px}
 
 /* Admin */
 .admin-header{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--line);margin-bottom:20px}
-.btn{display:inline-block;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:9px 16px;font-size:14px;text-decoration:none;cursor:pointer}
-.btn-outline{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn{display:inline-block;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 16px;
+  font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;transition:opacity .15s}
+.btn:hover{opacity:.9}
+.btn-outline{background:transparent;color:var(--fg);border:1.5px solid var(--line)}
 .btn-danger{background:#c62828}
-.admin-list{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.admin-list{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
 .admin-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .admin-row:last-child{border-bottom:0}
 .badge{font-size:12px;padding:2px 8px;border-radius:10px;background:var(--soft)}
 
 /* Chat widget */
 .chat-bubble{position:fixed;bottom:80px;right:16px;width:56px;height:56px;border-radius:50%;
-  background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
-  font-size:26px;border:0;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:60}
+  background:linear-gradient(160deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:24px;border:0;cursor:pointer;box-shadow:var(--shadow-lg);z-index:60}
 .chat-window{position:fixed;bottom:144px;right:16px;left:16px;max-width:380px;margin-left:auto;
-  background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.2);
-  display:flex;flex-direction:column;height:min(480px,60vh);z-index:60}
-.chat-head{background:var(--accent);color:#fff;padding:12px 14px;border-radius:12px 12px 0 0;font-weight:700;font-size:14px}
+  background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-lg);
+  display:flex;flex-direction:column;height:min(480px,60vh);z-index:60;overflow:hidden}
+.chat-head{background:linear-gradient(160deg,var(--accent),var(--accent2));color:#fff;padding:14px;font-weight:700;font-size:14px}
 .chat-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
-.chat-msg{max-width:85%;padding:8px 11px;border-radius:10px;font-size:14px;line-height:1.4}
-.chat-msg.user{align-self:flex-end;background:var(--accent);color:#fff}
-.chat-msg.bot{align-self:flex-start;background:var(--soft)}
+.chat-msg{max-width:85%;padding:9px 12px;border-radius:12px;font-size:14px;line-height:1.4}
+.chat-msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.chat-msg.bot{align-self:flex-start;background:var(--soft);border-bottom-left-radius:4px}
 .chat-input{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}
 .chat-input input{flex:1;padding:10px}
-.chat-input button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:0 14px;font-size:14px}
+.chat-input button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:0 16px;font-size:14px;font-weight:600}
 
 /* Phiếu đơn hàng */
-.receipt{border:1px solid var(--line);border-radius:12px;padding:20px;background:#fff}
+.receipt{border:1px solid var(--line);border-radius:16px;padding:22px 20px;background:#fff;box-shadow:var(--shadow)}
 .receipt-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;margin-bottom:10px}
 .receipt-head b{font-size:16px}
 .receipt-head span{font-size:12px;color:var(--muted)}
-.receipt-code{text-align:center;font-weight:700;color:var(--accent);font-size:15px;margin-bottom:12px;letter-spacing:.5px}
+.receipt-code{text-align:center;font-weight:800;color:var(--accent);font-size:15px;margin-bottom:12px;letter-spacing:.5px}
 .receipt-row{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:5px 0}
 .receipt-row span{color:var(--muted)}
 .receipt-total{font-size:17px}
@@ -108,8 +151,9 @@ footer{background:var(--soft);padding:22px 0;margin-top:30px;font-size:14px;colo
 .receipt-note{text-align:center;font-size:12px;color:var(--muted);margin-top:10px}
 
 .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
-  padding:10px 16px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;z-index:50}
+  padding:10px 16px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;z-index:50;
+  box-shadow:0 -4px 14px rgba(20,15,10,.06)}
 .bar a.call{flex:0 0 46px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);
-  border-radius:8px;text-decoration:none;font-size:20px}
-.bar .cta{flex:1;padding:13px}
-body{padding-bottom:76px}
+  border-radius:10px;text-decoration:none;font-size:20px}
+.bar .cta{flex:1;padding:13px;margin:0}
+body{padding-bottom:78px}

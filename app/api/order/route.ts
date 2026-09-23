@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
           name: d.name,
           phone: d.phone,
           address: d.address,
-          attributes: d.attributes || {},
+          attributes: Array.isArray(d.attributes) ? d.attributes : d.attributes ? [d.attributes] : [],
           comboQty: chosenVariant ? Number(d.comboQty) : null,
           price: total,
           quantity,
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
           name: d.name,
           phone: d.phone,
           address: d.address,
-          attributes: d.attributes || {},
+          attributes: Array.isArray(d.attributes) ? d.attributes : d.attributes ? [d.attributes] : [],
           comboQty: chosenVariant ? Number(d.comboQty) : null,
           price: total,
           quantity,
@@ -67,9 +67,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const attrLine = Object.entries(d.attributes || {})
-      .filter(([, v]) => v)
-      .map(([k, v]) => `${k}: ${v}`)
+    const attrUnits: Record<string, string>[] = Array.isArray(d.attributes) ? d.attributes : d.attributes ? [d.attributes] : [];
+    const attrLine = attrUnits
+      .map((u, i) => {
+        const entries = Object.entries(u || {}).filter(([, v]) => v);
+        if (entries.length === 0) return "";
+        const text = entries.map(([k, v]) => `${k}: ${v}`).join(", ");
+        return attrUnits.length > 1 ? `[${i + 1}] ${text}` : text;
+      })
+      .filter(Boolean)
       .join(" | ");
 
     const token = process.env.TELEGRAM_BOT_TOKEN;

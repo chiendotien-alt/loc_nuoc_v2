@@ -5,6 +5,7 @@ export async function appendOrderToSheet(row: (string | number)[]) {
   const key = process.env.GOOGLE_PRIVATE_KEY;
   const sheetId = process.env.GOOGLE_SHEET_ID;
 
+  // Chưa cấu hình Google Sheet thì bỏ qua, không làm hỏng luồng đặt hàng
   if (!email || !key || !sheetId) {
     console.warn("Thiếu GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_PRIVATE_KEY / GOOGLE_SHEET_ID, bỏ qua ghi Sheet.");
     return;
@@ -18,6 +19,7 @@ export async function appendOrderToSheet(row: (string | number)[]) {
 
   const sheets = google.sheets({ version: "v4", auth });
 
+  // Lấy đúng tên tab đầu tiên trong file (không giả định là "Sheet1")
   const meta = await sheets.spreadsheets.get({ spreadsheetId: sheetId, fields: "sheets.properties.title" });
   const tabName = meta.data.sheets?.[0]?.properties?.title || "Sheet1";
 

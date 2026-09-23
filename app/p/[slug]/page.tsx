@@ -2,12 +2,14 @@ import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import OrderForm from "@/components/OrderForm";
 import ChatWidget from "@/components/ChatWidget";
-import MediaGallery from "@/components/MediaGallery";
+import Gallery from "@/components/Gallery";
+import Reviews from "@/components/Reviews";
 
 export const dynamic = "force-dynamic";
 
 type Attribute = { name: string; values: string[] };
 type Variant = { qty: number; price: number };
+type Review = { name: string; rating: number; text: string; images?: string[] };
 
 function formatPrice(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
@@ -19,6 +21,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   const attributes = (product.attributes as unknown as Attribute[]) || [];
   const variants = (product.variants as unknown as Variant[]) || [];
+  const reviews = (product.reviews as unknown as Review[]) || [];
   const hasVariants = variants.length > 0;
   const minPrice = hasVariants ? Math.min(...variants.map((v) => v.price)) : product.price;
 
@@ -31,11 +34,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   return (
     <div className="wrap">
-      <MediaGallery
-        video={product.video}
-        images={product.images}
-        productName={product.name}
-      />
+      <Gallery images={product.images} video={product.video} />
 
       <h1>{product.name}</h1>
 
@@ -83,6 +82,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
       <h2>Mô tả sản phẩm</h2>
       <p style={{ whiteSpace: "pre-line" }}>{product.description}</p>
 
+      <Reviews reviews={reviews} />
+
       <h2 id="dathang">Đặt hàng</h2>
       <OrderForm
         productId={product.id}
@@ -96,9 +97,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
       <footer>{shopName}</footer>
 
       <div className="bar">
-        <a className="cta" href="#dathang">
-          {hasVariants ? `MUA NGAY - TỪ ${formatPrice(minPrice)}` : `MUA NGAY - ${formatPrice(product.price)}`}
-        </a>
+        <button type="submit" form="order-form" className="cta">
+          Mua ngay
+        </button>
       </div>
 
       <ChatWidget productSlug={product.slug} productName={product.name} />

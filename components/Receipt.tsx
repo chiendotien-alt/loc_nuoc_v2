@@ -8,7 +8,7 @@ export type ReceiptData = {
   phone: string;
   address: string;
   productName: string;
-  attributesSelected: Record<string, string>;
+  attributesSelected: Record<string, string>[];
   quantity: number;
   price: number;
   total: number;
@@ -40,7 +40,9 @@ export default function Receipt({ data, shopName }: { data: ReceiptData; shopNam
     }
   }
 
-  const attrEntries = Object.entries(data.attributesSelected || {}).filter(([, v]) => v);
+  const units = data.attributesSelected || [];
+  const showPerUnit = units.length > 1 && units.some((u) => Object.keys(u || {}).length > 0);
+  const sharedEntries = !showPerUnit ? Object.entries(units[0] || {}).filter(([, v]) => v) : [];
 
   return (
     <div style={{ marginTop: 14 }}>
@@ -67,12 +69,23 @@ export default function Receipt({ data, shopName }: { data: ReceiptData; shopNam
           <span>Sản phẩm</span>
           <b>{data.productName}</b>
         </div>
-        {attrEntries.map(([k, v]) => (
+        {sharedEntries.map(([k, v]) => (
           <div className="receipt-row" key={k}>
             <span>{k}</span>
             <b>{v}</b>
           </div>
         ))}
+        {showPerUnit &&
+          units.map((u, i) => {
+            const entries = Object.entries(u || {}).filter(([, v]) => v);
+            if (entries.length === 0) return null;
+            return (
+              <div className="receipt-row" key={i}>
+                <span>Cái {i + 1}</span>
+                <b>{entries.map(([, v]) => v).join(" · ")}</b>
+              </div>
+            );
+          })}
         <div className="receipt-row">
           <span>Số lượng</span>
           <b>{data.quantity}</b>

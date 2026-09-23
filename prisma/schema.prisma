@@ -19,6 +19,7 @@ model Product {
   video       String?
   attributes  Json     @default("[]")
   variants    Json     @default("[]")
+  reviews     Json     @default("[]")
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

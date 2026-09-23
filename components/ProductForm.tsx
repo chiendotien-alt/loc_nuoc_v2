@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 type Attribute = { name: string; values: string };
 type Combo = { qty: string; price: string };
+type Review = { name: string; rating: string; text: string; images: string };
 
 type Product = {
   id?: string;
@@ -17,6 +18,7 @@ type Product = {
   video?: string | null;
   attributes?: { name: string; values: string[] }[];
   variants?: { qty: number; price: number }[];
+  reviews?: { name: string; rating: number; text: string; images?: string[] }[];
   active?: boolean;
 };
 
@@ -36,6 +38,18 @@ export default function ProductForm({ product }: { product?: Product }) {
       ? product.variants.map((v) => ({ qty: String(v.qty), price: String(v.price) }))
       : []
   );
+  const [reviews, setReviews] = useState<Review[]>(
+    product?.reviews?.length
+      ? product.reviews.map((r) => ({ name: r.name, rating: String(r.rating), text: r.text, images: (r.images || []).join(", ") }))
+      : []
+  );
+
+  function updateReview(i: number, field: keyof Review, value: string) {
+    setReviews((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
+  }
+  function removeReview(i: number) {
+    setReviews((prev) => prev.filter((_, idx) => idx !== i));
+  }
 
   function updateAttr(i: number, field: "name" | "values", value: string) {
     setAttrs((prev) => prev.map((a, idx) => (idx === i ? { ...a, [field]: value } : a)));
@@ -74,7 +88,15 @@ export default function ProductForm({ product }: { product?: Product }) {
         .filter((a) => a.name && a.values.length > 0),
       variants: combos
         .map((c) => ({ qty: Number(c.qty), price: Number(c.price) }))
-        .filter((c) => c.qty > 0 && c.price > 0)
+        .filter((c) => c.qty > 0 && c.price > 0),
+      reviews: reviews
+        .map((r) => ({
+          name: r.name.trim(),
+          rating: Math.min(5, Math.max(1, Number(r.rating) || 5)),
+          text: r.text.trim(),
+          images: r.images.split(",").map((v) => v.trim()).filter(Boolean)
+        }))
+        .filter((r) => r.name && r.text)
     };
 
     const url = isEdit ? `/api/admin/products/${product!.id}` : "/api/admin/products";
@@ -196,6 +218,51 @@ export default function ProductForm({ product }: { product?: Product }) {
         onClick={() => setCombos((prev) => [...prev, { qty: "", price: "" }])}
       >
         + Thêm combo
+      </button>
+
+      {/* Đánh giá thật */}
+      <label style={{ marginTop: 24 }}>Đánh giá khách hàng (không bắt buộc)</label>
+      <p className="note" style={{ textAlign: "left", marginTop: 0 }}>
+        Chỉ nhập đánh giá THẬT từ khách đã mua (copy từ tin nhắn Zalo/SMS khách gửi). Không tự bịa — vi phạm luật quảng cáo.
+      </p>
+      {reviews.map((r, i) => (
+        <div key={i} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12, marginBottom: 10 }}>
+          <div className="row">
+            <div>
+              <label>Tên khách</label>
+              <input value={r.name} onChange={(e) => updateReview(i, "name", e.target.value)} placeholder="Chị Lan" />
+            </div>
+            <div>
+              <label>Số sao (1-5)</label>
+              <input
+                type="number"
+                min="1"
+                max="5"
+                value={r.rating}
+                onChange={(e) => updateReview(i, "rating", e.target.value)}
+                placeholder="5"
+              />
+            </div>
+          </div>
+          <label>Nội dung đánh giá</label>
+          <textarea rows={2} value={r.text} onChange={(e) => updateReview(i, "text", e.target.value)} placeholder="Hàng đúng mô tả, giao nhanh..." />
+          <label>Ảnh khách gửi (không bắt buộc, cách nhau bằng dấu phẩy)</label>
+          <input
+            value={r.images}
+            onChange={(e) => updateReview(i, "images", e.target.value)}
+            placeholder="https://i.postimg.cc/anh-khach-1.jpg, https://i.postimg.cc/anh-khach-2.jpg"
+          />
+          <button type="button" onClick={() => removeReview(i)} className="btn btn-danger" style={{ marginTop: 6 }}>
+            Xóa đánh giá này
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="btn btn-outline"
+        onClick={() => setReviews((prev) => [...prev, { name: "", rating: "5", text: "", images: "" }])}
+      >
+        + Thêm đánh giá thật
       </button>
 
       <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 24 }}>

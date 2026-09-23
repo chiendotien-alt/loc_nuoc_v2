@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       video: d.video || null,
       attributes: Array.isArray(d.attributes) ? d.attributes : [],
       variants: Array.isArray(d.variants) ? d.variants : [],
+      reviews: Array.isArray(d.reviews) ? d.reviews : [],
       active: d.active !== false
     }
   });
