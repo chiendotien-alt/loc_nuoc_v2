@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 export default function Gallery({ images, video }: { images: string[]; video?: string | null }) {
+  const poster = images[0];
   const items: { type: "video" | "image"; src: string }[] = [
     ...(video ? [{ type: "video" as const, src: video }] : []),
     ...images.map((src) => ({ type: "image" as const, src }))
@@ -51,7 +52,7 @@ export default function Gallery({ images, video }: { images: string[]; video?: s
         {items.map((item, i) => (
           <div className="slide" key={i} ref={(el) => { slideRefs.current[i] = el; }}>
             {item.type === "video" ? (
-              <video src={item.src} controls autoPlay muted loop playsInline preload="auto" />
+              <video src={item.src} controls autoPlay muted loop playsInline preload="auto" poster={poster} />
             ) : (
               <img src={item.src} alt={`Ảnh ${i + 1}`} />
             )}

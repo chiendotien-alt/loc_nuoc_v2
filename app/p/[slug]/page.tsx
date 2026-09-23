@@ -4,6 +4,7 @@ import OrderForm from "@/components/OrderForm";
 import ChatWidget from "@/components/ChatWidget";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,32 @@ type Review = { name: string; rating: number; text: string; images?: string[] };
 
 function formatPrice(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
+}
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const product = await prisma.product.findUnique({ where: { slug: params.slug } });
+  if (!product) return {};
+
+  const shopName = process.env.NEXT_PUBLIC_SHOP_NAME || "Đồ Gia Dụng Shop";
+  const image = product.images[0] || "https://placehold.co/560x700?text=San+pham";
+  const description = `${formatPrice(product.price)} · ${product.description.slice(0, 120)}`;
+
+  return {
+    title: `${product.name} - ${shopName}`,
+    description,
+    openGraph: {
+      title: product.name,
+      description,
+      images: [{ url: image, width: 560, height: 700 }],
+      type: "website"
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: product.name,
+      description,
+      images: [image]
+    }
+  };
 }
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
