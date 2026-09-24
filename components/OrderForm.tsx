@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Receipt, { ReceiptData } from "./Receipt";
+import { pixelTrack } from "@/lib/pixel";
 import {
   computePricing,
   normalizeTiers,
@@ -40,6 +41,15 @@ export default function OrderForm({
   const defaultAttrs = () => Object.fromEntries(attributes.map((a) => [a.name, a.values[0] || ""]));
 
   const [sending, setSending] = useState(false);
+  // Khoá chống bấm đúp: setState chưa kịp cập nhật giữa hai lần bấm sát nhau, ref thì có hiệu lực ngay
+  const submittingRef = useRef(false);
+  // Chỉ báo InitiateCheckout một lần cho mỗi lần xem trang
+  const checkoutSentRef = useRef(false);
+  // Thời điểm form hiện ra, gửi kèm để server phát hiện bot điền form quá nhanh
+  const mountedAt = useRef(0);
+  useEffect(() => {
+    mountedAt.current = Date.now();
+  }, []);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [lines, setLines] = useState<OrderLine[]>([{ attrs: defaultAttrs(), qty: 1 }]);
@@ -80,6 +90,8 @@ export default function OrderForm({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSending(true);
     setError("");
 
@@ -89,10 +101,12 @@ export default function OrderForm({
 
     const payload = {
       productId,
-      name: fd.name,
-      phone: fd.phone,
-      address: fd.address,
+      name: (fd.name || "").trim(),
+      phone: (fd.phone || "").trim(),
+      address: (fd.address || "").trim(),
       lines: merged,
+      hp: fd.hp_check || "",
+      elapsed: mountedAt.current ? Date.now() - mountedAt.current : undefined,
       source: typeof window !== "undefined" ? window.location.search || "truc-tiep" : ""
     };
 
@@ -102,14 +116,18 @@ export default function OrderForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error("failed");
+      if (!res.ok) {
+        // Server trả lý do bằng tiếng Việt (SĐT sai, địa chỉ thiếu, đặt quá nhiều...) thì hiện cho khách
+        const info = await res.json().catch(() => null);
+        throw new Error(info?.message || "failed");
+      }
       const result = await res.json();
 
       setReceipt({
         code: result.code,
-        name: fd.name,
-        phone: fd.phone,
-        address: fd.address,
+        name: payload.name,
+        phone: payload.phone,
+        address: payload.address,
         productName,
         lines: merged,
         quantity: result.quantity,
@@ -121,11 +139,27 @@ export default function OrderForm({
         createdAt: new Date().toLocaleString("vi-VN")
       });
 
-      // @ts-ignore
-      if (window.fbq) window.fbq("track", "Purchase", { value: result.total, currency: "VND" });
-    } catch {
-      setError("Gửi đơn lỗi, bạn gọi hotline giúp shop nhé.");
+      // Đơn trùng (bấm hai lần) chỉ hiện lại phiếu cũ, không tính thêm một lần mua.
+      // Chỉ gửi giá trị đơn và mã sản phẩm, không gửi thông tin cá nhân của khách.
+      if (!result.duplicate) {
+        pixelTrack(
+          "Purchase",
+          {
+            value: result.total,
+            currency: "VND",
+            content_ids: [productId],
+            content_name: productName,
+            content_type: "product",
+            num_items: result.quantity
+          },
+          result.code
+        );
+      }
+    } catch (e) {
+      const msg = e instanceof Error && e.message !== "failed" && e.message !== "Failed to fetch" ? e.message : "";
+      setError(msg || "Gửi đơn lỗi, bạn gọi hotline giúp shop nhé.");
     } finally {
+      submittingRef.current = false;
       setSending(false);
     }
   }
@@ -143,7 +177,21 @@ export default function OrderForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} id="order-form">
+    <form
+      onSubmit={handleSubmit}
+      id="order-form"
+      onFocusCapture={() => {
+        if (checkoutSentRef.current) return;
+        checkoutSentRef.current = true;
+        pixelTrack("InitiateCheckout", {
+          value: pricing.total,
+          currency: "VND",
+          content_ids: [productId],
+          content_type: "product",
+          num_items: totalQty
+        });
+      }}
+    >
       <label style={{ marginTop: 0 }}>{hasAttrs ? "Chọn loại & số lượng *" : "Số lượng *"}</label>
 
       {hasTiers && (
@@ -268,13 +316,39 @@ export default function OrderForm({
 
       <label style={{ marginTop: 6, fontSize: 15 }}>Thông tin nhận hàng</label>
       <label style={{ marginTop: 8 }}>Họ và tên *</label>
-      <input name="name" required placeholder="Nguyễn Thị A" />
+      <input name="name" required maxLength={60} autoComplete="name" placeholder="Nguyễn Thị A" />
 
       <label>Số điện thoại *</label>
-      <input name="phone" type="tel" required pattern="0[0-9]{9}" placeholder="0912345678" />
+      <input
+        name="phone"
+        type="tel"
+        required
+        maxLength={10}
+        inputMode="numeric"
+        autoComplete="tel"
+        pattern="0[35789][0-9]{8}"
+        title="Nhập 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09"
+        placeholder="0912345678"
+      />
 
       <label>Địa chỉ nhận hàng *</label>
-      <textarea name="address" rows={2} required placeholder="Số nhà, xã/phường, quận/huyện, tỉnh" />
+      <textarea
+        name="address"
+        rows={2}
+        required
+        minLength={10}
+        maxLength={300}
+        autoComplete="street-address"
+        placeholder="Số nhà, xã/phường, quận/huyện, tỉnh"
+      />
+
+      {/* Ô bẫy bot: người thật không thấy và không điền */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
+        <label>
+          Để trống
+          <input name="hp_check" tabIndex={-1} autoComplete="off" />
+        </label>
+      </div>
 
       <button type="submit" className="cta" disabled={sending}>
         {sending ? "Đang gửi..." : "Mua ngay"}

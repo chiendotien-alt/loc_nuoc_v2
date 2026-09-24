@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { appendOrderToSheet } from "@/lib/sheets";
+import { canonLines, createRateLimiter, normalizePhone, validateCustomer } from "@/lib/antispam";
 import {
   computePricing,
   getUnit,
@@ -13,6 +14,28 @@ import {
 } from "@/lib/pricing";
 
 type Attribute = { name: string; values: string[]; images?: Record<string, string> };
+
+// Chặn theo IP, nới rộng vì nhiều khách dùng chung một IP của nhà mạng (lưu trong bộ nhớ của server; trên Vercel mỗi instance đếm riêng nên chỉ là lớp lọc phụ,
+// lớp chắc chắn là kiểm tra theo số điện thoại trong database bên dưới)
+const ipLimiter = createRateLimiter(20, 10 * 60 * 1000);
+
+const DUPLICATE_WINDOW_MS = 10 * 60 * 1000; // cùng SĐT + cùng sản phẩm + cùng nội dung trong 10 phút = đơn trùng
+const MAX_PER_HOUR = 3; // mỗi SĐT tối đa 3 đơn / giờ
+const MAX_PER_DAY = 6; // và 6 đơn / 24 giờ
+const MIN_FILL_MS = 3000; // điền form nhanh hơn 3 giây là bất thường
+
+function err(status: number, error: string, message: string) {
+  return NextResponse.json({ error, message }, { status });
+}
+
+function blockedPhones(): Set<string> {
+  return new Set(
+    (process.env.BLOCKED_PHONES || "")
+      .split(",")
+      .map((s) => normalizePhone(s))
+      .filter(Boolean)
+  );
+}
 
 function generateOrderCode() {
   const now = new Date();
@@ -49,10 +72,33 @@ function sanitizeLines(raw: unknown, attrDefs: Attribute[]): OrderLine[] | null 
 
 export async function POST(req: NextRequest) {
   try {
-    const d = await req.json();
+    const d = await req.json().catch(() => null);
+    if (!d || typeof d !== "object") return err(400, "bad_request", "Dữ liệu gửi lên không hợp lệ.");
 
-    if (!d.productId || !d.name || !d.phone || !d.address) {
-      return NextResponse.json({ error: "missing fields" }, { status: 400 });
+    // Ô ẩn (honeypot): người thật không nhìn thấy nên không điền, bot tự động thì điền.
+    // Trả về "thành công" giả để bot không biết mà đổi cách, và không lưu gì cả.
+    if (typeof d.hp === "string" && d.hp.trim()) {
+      return NextResponse.json({ ok: true, code: "DH000000", quantity: 1, total: 0, unitPrice: 0, tierQty: 1 });
+    }
+
+    const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown";
+    if (!ipLimiter(ip)) {
+      return err(429, "too_many", "Bạn thao tác hơi nhiều lần, vui lòng thử lại sau ít phút hoặc gọi hotline giúp shop nhé.");
+    }
+
+    // Thời gian từ lúc mở form đến lúc bấm gửi (do trình duyệt báo lên). Thiếu thì bỏ qua để không lỗi với bản cũ.
+    if (typeof d.elapsed === "number" && d.elapsed < MIN_FILL_MS) {
+      return err(400, "too_fast", "Bạn thao tác hơi nhanh, vui lòng kiểm tra lại thông tin rồi bấm gửi lại nhé.");
+    }
+
+    if (!d.productId) return err(400, "missing_fields", "Thiếu thông tin đơn hàng.");
+
+    const customer = validateCustomer({ name: d.name, phone: d.phone, address: d.address });
+    if (!customer.ok) return err(400, "invalid_customer", customer.message);
+    const { name, phone, address } = customer;
+
+    if (blockedPhones().has(phone)) {
+      return err(403, "blocked", "Số điện thoại này hiện chưa đặt được online, bạn vui lòng liên hệ hotline của shop nhé.");
     }
 
     const product = await prisma.product.findUnique({ where: { id: d.productId } });
@@ -68,11 +114,50 @@ export async function POST(req: NextRequest) {
     const quantity = lines.reduce((s, l) => s + l.qty, 0);
     const { total, unitPrice, tierQty } = computePricing(variants, product.price, quantity);
 
+    // Lịch sử đơn của cùng số điện thoại trong 24 giờ qua
+    const now = Date.now();
+    const recent = await prisma.order.findMany({
+      where: { phone, createdAt: { gte: new Date(now - 24 * 60 * 60 * 1000) } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { id: true, code: true, productId: true, price: true, quantity: true, attributes: true, createdAt: true }
+    });
+
+    // Đơn trùng: khách bấm hai lần hoặc gửi lại. Không tạo đơn mới, trả lại đơn cũ như đã đặt thành công.
+    const newCanon = canonLines(lines);
+    const dup = recent.find(
+      (o) =>
+        o.productId === product.id &&
+        now - o.createdAt.getTime() < DUPLICATE_WINDOW_MS &&
+        canonLines(o.attributes as unknown as OrderLine[]) === newCanon
+    );
+    if (dup) {
+      return NextResponse.json({
+        ok: true,
+        duplicate: true,
+        code: dup.code,
+        quantity: dup.quantity,
+        total: dup.price ?? total,
+        unitPrice,
+        tierQty,
+        orderId: dup.id
+      });
+    }
+
+    const lastHour = recent.filter((o) => now - o.createdAt.getTime() < 60 * 60 * 1000).length;
+    if (lastHour >= MAX_PER_HOUR || recent.length >= MAX_PER_DAY) {
+      return err(
+        429,
+        "too_many_orders",
+        "Số điện thoại này đã đặt khá nhiều đơn gần đây. Bạn vui lòng gọi hotline để shop hỗ trợ nhé."
+      );
+    }
+
     const baseData = {
       productId: d.productId,
-      name: d.name,
-      phone: d.phone,
-      address: d.address,
+      name,
+      phone,
+      address,
       attributes: lines as unknown as object,
       comboQty: tierQty > 1 ? tierQty : null,
       price: total,
@@ -101,9 +186,10 @@ export async function POST(req: NextRequest) {
     if (token && chatId) {
       const text =
         `🛒 ĐƠN HÀNG MỚI - ${code}\n` +
-        `👤 ${d.name}\n` +
-        `📞 ${d.phone}\n` +
-        `📍 ${d.address}\n` +
+        (recent.length > 0 ? `⚠️ SĐT này đã có ${recent.length} đơn khác trong 24h qua\n` : "") +
+        `👤 ${name}\n` +
+        `📞 ${phone}\n` +
+        `📍 ${address}\n` +
         `📦 ${product.name}\n` +
         lines
           .map((l, i) => {
@@ -137,9 +223,9 @@ export async function POST(req: NextRequest) {
         // Server chạy giờ UTC nên phải chỉ rõ múi giờ Việt Nam, nếu không giờ ghi vào Sheet sẽ chậm 7 tiếng
         new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }),
         code,
-        d.name,
-        d.phone,
-        d.address,
+        name,
+        phone,
+        address,
         product.name,
         attrLine,
         quantity,

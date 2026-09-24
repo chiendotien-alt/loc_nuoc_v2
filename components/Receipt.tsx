@@ -92,7 +92,7 @@ export default function Receipt({ data, shopName }: { data: ReceiptData; shopNam
       </div>
 
       <button type="button" className="cta" onClick={handleShowImage} disabled={downloading} style={{ marginTop: 10 }}>
-        {downloading ? "Đang tạo ảnh..." : "Hóa đơn (nhấn giữ phiếu để lưu)"}
+        {downloading ? "Đang tạo ảnh..." : "Hóa đơn"}
       </button>
 
       {imgUrl && (

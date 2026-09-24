@@ -5,6 +5,7 @@ import ChatWidget from "@/components/ChatWidget";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
 import PriceHero from "@/components/PriceHero";
+import PixelViewContent from "@/components/PixelViewContent";
 import { normalizeTiers, getUnit, type Variant } from "@/lib/pricing";
 import type { Metadata } from "next";
 
@@ -59,6 +60,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   return (
     <div className="wrap">
+      <PixelViewContent productId={product.id} name={product.name} value={retailPrice} />
+
       <Gallery images={product.images} video={product.video} />
 
       <h1>{product.name}</h1>
