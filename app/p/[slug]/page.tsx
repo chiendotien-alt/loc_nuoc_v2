@@ -4,6 +4,7 @@ import OrderForm from "@/components/OrderForm";
 import ChatWidget from "@/components/ChatWidget";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
+import PriceHero from "@/components/PriceHero";
 import { normalizeTiers, getUnit, type Variant } from "@/lib/pricing";
 import type { Metadata } from "next";
 
@@ -51,14 +52,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const reviews = (product.reviews as unknown as Review[]) || [];
   const tiers = normalizeTiers(variants, product.price);
   const unit = getUnit(variants);
-  const hasTiers = tiers.length > 1;
   const retailPrice = tiers[0].unitPrice;
   const bestTier = tiers.reduce((b, t) => (t.unitPrice < b.unitPrice ? t : b), tiers[0]);
-
-  const discount =
-    product.oldPrice && product.oldPrice > retailPrice
-      ? Math.round(100 - (retailPrice / product.oldPrice) * 100)
-      : null;
 
   const shopName = process.env.NEXT_PUBLIC_SHOP_NAME || "Đồ Gia Dụng Shop";
 
@@ -68,18 +63,14 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
       <h1>{product.name}</h1>
 
-      <div className="price">
-        <span className="new">{formatPrice(retailPrice)}</span>
-        {product.oldPrice && product.oldPrice > retailPrice && (
-          <span className="old">{formatPrice(product.oldPrice)}</span>
-        )}
-        {discount && <span className="tag">-{discount}%</span>}
-      </div>
-      {hasTiers && bestTier.qty > 1 && (
-        <p className="note" style={{ textAlign: "left", margin: "4px 0 0" }}>
-          Mua từ <b>{bestTier.qty} {unit}</b> chỉ còn <b>{formatPrice(bestTier.unitPrice)}/{unit}</b>
-        </p>
-      )}
+      <PriceHero
+        productId={product.id}
+        bestPrice={bestTier.unitPrice}
+        retailPrice={retailPrice}
+        oldPrice={product.oldPrice}
+        bestQty={bestTier.qty}
+        unit={unit}
+      />
 
       <a href="#dathang" className="cta">
         ĐẶT HÀNG NGAY
