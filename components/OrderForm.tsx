@@ -75,7 +75,20 @@ export default function OrderForm({
     });
   }
 
+  // Khách chưa cộng số lượng nào (tổng = 0) thì nhắc thay vì mở form / gửi đơn
+  const [triedEmpty, setTriedEmpty] = useState(false);
+  const warnRef = useRef<HTMLParagraphElement>(null);
+
+  function warnEmpty() {
+    setTriedEmpty(true);
+    setTimeout(() => warnRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+  }
+
   function revealInfo() {
+    if (totalQty < 1) {
+      warnEmpty();
+      return;
+    }
     setShowInfo(true);
     trackCheckoutOnce();
     // đợi ô thông tin hiện ra rồi cuộn tới
@@ -87,7 +100,7 @@ export default function OrderForm({
     if (!showInfo) revealInfo();
     else formRef.current?.requestSubmit();
   }
-  const [lines, setLines] = useState<OrderLine[]>([{ attrs: defaultAttrs(), qty: 1 }]);
+  const [lines, setLines] = useState<OrderLine[]>([{ attrs: defaultAttrs(), qty: 0 }]);
 
   const totalQty = lines.reduce((s, l) => s + l.qty, 0);
   const pricing = useMemo(() => computePricing(variants, basePrice, totalQty), [variants, basePrice, totalQty]);
@@ -110,13 +123,13 @@ export default function OrderForm({
     setLines((prev) => {
       const others = prev.reduce((s, l, idx) => (idx === i ? s : s + l.qty), 0);
       const max = Math.min(MAX_LINE_QTY, MAX_TOTAL_QTY - others);
-      const qty = Math.min(Math.max(1, Math.floor(raw) || 1), Math.max(1, max));
+      const qty = Math.min(Math.max(0, Math.floor(raw) || 0), Math.max(0, max));
       return prev.map((l, idx) => (idx === i ? { ...l, qty } : l));
     });
   }
 
   function addLine() {
-    setLines((prev) => [...prev, { attrs: defaultAttrs(), qty: 1 }]);
+    setLines((prev) => [...prev, { attrs: defaultAttrs(), qty: 0 }]);
   }
 
   function removeLine(i: number) {
@@ -130,6 +143,10 @@ export default function OrderForm({
       revealInfo();
       return;
     }
+    if (totalQty < 1) {
+      warnEmpty();
+      return;
+    }
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSending(true);
@@ -137,7 +154,7 @@ export default function OrderForm({
 
     const form = e.currentTarget;
     const fd = Object.fromEntries(new FormData(form)) as Record<string, string>;
-    const merged = mergeLines(lines);
+    const merged = mergeLines(lines.filter((l) => l.qty > 0));
 
     const payload = {
       productId,
@@ -237,7 +254,7 @@ export default function OrderForm({
               );
             })}
           </div>
-          {pricing.nextTier ? (
+          {totalQty < 1 ? null : pricing.nextTier ? (
             <p className="tier-hint">
               Mua thêm <b>{pricing.nextTier.needMore} {unit}</b> để giảm còn{" "}
               <b>{formatPrice(pricing.nextTier.unitPrice)}/{unit}</b>
@@ -301,13 +318,13 @@ export default function OrderForm({
           <div className="qty-row">
             <span>Số lượng</span>
             <div className="qty-stepper">
-              <button type="button" onClick={() => setLineQty(i, line.qty - 1)} disabled={line.qty <= 1} aria-label="Giảm">
+              <button type="button" onClick={() => setLineQty(i, line.qty - 1)} disabled={line.qty <= 0} aria-label="Giảm">
                 −
               </button>
               <input
                 type="number"
                 inputMode="numeric"
-                min={1}
+                min={0}
                 max={MAX_LINE_QTY}
                 value={line.qty}
                 onChange={(e) => setLineQty(i, Number(e.target.value))}
@@ -339,6 +356,12 @@ export default function OrderForm({
         </span>
         <b>{formatPrice(pricing.total)}</b>
       </div>
+
+      {triedEmpty && totalQty < 1 && (
+        <p ref={warnRef} className="note" style={{ color: "#c62828", marginTop: 8 }}>
+          Bạn chưa chọn số lượng, bấm dấu + để thêm sản phẩm nhé.
+        </p>
+      )}
 
       {!showInfo && (
         <button type="button" className="cta" onClick={revealInfo} style={{ marginTop: 14 }}>
