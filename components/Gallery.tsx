@@ -2,12 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export default function Gallery({ images, video }: { images: string[]; video?: string | null }) {
-  const poster = images[0];
-  const items: { type: "video" | "image"; src: string }[] = [
-    ...(video ? [{ type: "video" as const, src: video }] : []),
-    ...images.map((src) => ({ type: "image" as const, src }))
-  ];
+export default function Gallery({ images }: { images: string[] }) {
+  const items: { type: "image"; src: string }[] = images.map((src) => ({ type: "image" as const, src }));
 
   const mainRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -51,11 +47,7 @@ export default function Gallery({ images, video }: { images: string[]; video?: s
       <div className="carousel" ref={mainRef}>
         {items.map((item, i) => (
           <div className="slide" key={i} ref={(el) => { slideRefs.current[i] = el; }}>
-            {item.type === "video" ? (
-              <video src={item.src} controls autoPlay muted loop playsInline preload="auto" poster={poster} />
-            ) : (
-              <img src={item.src} alt={`Ảnh ${i + 1}`} />
-            )}
+            <img src={item.src} alt={`Ảnh ${i + 1}`} />
           </div>
         ))}
       </div>
@@ -68,14 +60,9 @@ export default function Gallery({ images, video }: { images: string[]; video?: s
               type="button"
               className={`thumb ${active === i ? "thumb-active" : ""}`}
               onClick={() => goTo(i)}
-              aria-label={`Xem ${item.type === "video" ? "video" : "ảnh"} ${i + 1}`}
+              aria-label={`Xem ảnh ${i + 1}`}
             >
-              {item.type === "video" ? (
-                <video src={item.src} muted playsInline preload="metadata" />
-              ) : (
-                <img src={item.src} alt="" />
-              )}
-              {item.type === "video" && <span className="thumb-play">▶</span>}
+              <img src={item.src} alt="" />
             </button>
           ))}
         </div>

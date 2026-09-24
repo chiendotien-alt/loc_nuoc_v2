@@ -62,7 +62,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
     <div className="wrap">
       <PixelViewContent productId={product.id} name={product.name} value={retailPrice} />
 
-      <Gallery images={product.images} video={product.video} />
+      <Gallery images={product.images} />
 
       <h1>{product.name}</h1>
 
@@ -107,6 +107,20 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
       <h2>Mô tả sản phẩm</h2>
       <p style={{ whiteSpace: "pre-line" }}>{product.description}</p>
+
+      {product.video && (
+        <>
+          <h2>Video giới thiệu</h2>
+          <video
+            src={product.video}
+            controls
+            playsInline
+            preload="metadata"
+            poster={product.images[0]}
+            style={{ width: "100%", borderRadius: 12, display: "block", background: "#000" }}
+          />
+        </>
+      )}
 
       <Reviews reviews={reviews} />
 
