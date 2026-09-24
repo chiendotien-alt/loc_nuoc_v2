@@ -134,7 +134,8 @@ export async function POST(req: NextRequest) {
 
     try {
       await appendOrderToSheet([
-        new Date().toLocaleString("vi-VN"),
+        // Server chạy giờ UTC nên phải chỉ rõ múi giờ Việt Nam, nếu không giờ ghi vào Sheet sẽ chậm 7 tiếng
+        new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }),
         code,
         d.name,
         d.phone,

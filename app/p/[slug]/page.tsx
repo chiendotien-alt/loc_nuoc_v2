@@ -5,13 +5,14 @@ import ChatWidget from "@/components/ChatWidget";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
 import PriceHero from "@/components/PriceHero";
+import MessengerButton from "@/components/MessengerButton";
 import { normalizeTiers, getUnit, type Variant } from "@/lib/pricing";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
 type Attribute = { name: string; values: string[]; images?: Record<string, string> };
-type Review = { name: string; rating: number; text: string; images?: string[] };
+type Review = { name: string; rating: number; text: string; images?: string[]; avatar?: string };
 
 function formatPrice(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
@@ -77,10 +78,11 @@ export default async function ProductPage({ params }: { params: { slug: string }
       </a>
 
       <ul className="trust">
-        <li>Được xem hàng trước khi thanh toán</li>
-        <li>Đổi hàng miễn phí nếu lỗi trong 7 ngày</li>
-        <li>Miễn phí giao hàng toàn quốc</li>
-        <li>Hoàn tiền nếu hàng không giống mô tả</li>
+        <li className="trust-title">Cam kết của shop</li>
+        <li>Được <b>xem hàng</b> trước khi thanh toán</li>
+        <li><b>Đổi hàng miễn phí</b> nếu lỗi trong 7 ngày</li>
+        <li><b>Miễn phí giao hàng</b> toàn quốc</li>
+        <li><b>Hoàn tiền</b> nếu hàng không giống mô tả</li>
       </ul>
 
       <div className="policy-grid">
@@ -124,6 +126,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
         </button>
       </div>
 
+      <MessengerButton />
       <ChatWidget productSlug={product.slug} productName={product.name} />
     </div>
   );

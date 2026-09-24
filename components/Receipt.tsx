@@ -22,19 +22,18 @@ function formatPrice(n: number) {
 export default function Receipt({ data, shopName }: { data: ReceiptData; shopName: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  // Ảnh phiếu đã tạo — hiện lên để khách nhấn giữ và lưu (tải file tự động hay bị chặn trên điện thoại)
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
 
-  async function handleDownload() {
+  async function handleShowImage() {
     if (!ref.current) return;
     setDownloading(true);
     try {
       const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(ref.current, { backgroundColor: "#ffffff", pixelRatio: 2 });
-      const link = document.createElement("a");
-      link.download = `phieu-${data.code}.png`;
-      link.href = dataUrl;
-      link.click();
+      setImgUrl(dataUrl);
     } catch {
-      alert("Không tải được ảnh, bạn chụp màn hình phiếu này thay thế nhé.");
+      alert("Không tạo được ảnh, bạn chụp màn hình phiếu này thay thế nhé.");
     } finally {
       setDownloading(false);
     }
@@ -92,9 +91,43 @@ export default function Receipt({ data, shopName }: { data: ReceiptData; shopNam
         <div className="receipt-note">Thanh toán khi nhận hàng (COD) · {data.createdAt}</div>
       </div>
 
-      <button type="button" className="cta" onClick={handleDownload} disabled={downloading} style={{ marginTop: 10 }}>
-        {downloading ? "Đang tạo ảnh..." : "Tải phiếu (ảnh)"}
+      <button type="button" className="cta" onClick={handleShowImage} disabled={downloading} style={{ marginTop: 10 }}>
+        {downloading ? "Đang tạo ảnh..." : "Hóa đơn (nhấn giữ phiếu để lưu)"}
       </button>
+
+      {imgUrl && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(0,0,0,.85)",
+            overflowY: "auto",
+            padding: "16px 16px 32px"
+          }}
+        >
+          <div style={{ maxWidth: 440, margin: "0 auto" }}>
+            <p style={{ color: "#fff", textAlign: "center", fontWeight: 700, margin: "4px 0 12px" }}>
+              Nhấn giữ vào ảnh → chọn “Lưu hình ảnh”
+            </p>
+            <img
+              src={imgUrl}
+              alt={`Hóa đơn ${data.code}`}
+              style={{ width: "100%", height: "auto", borderRadius: 10, background: "#fff", display: "block" }}
+            />
+            <button
+              type="button"
+              className="cta"
+              onClick={() => setImgUrl(null)}
+              style={{ marginTop: 14 }}
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

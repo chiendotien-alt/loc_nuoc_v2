@@ -6,7 +6,7 @@ import { getUnit, DEFAULT_UNIT } from "@/lib/pricing";
 
 type Attribute = { name: string; values: string; images: Record<string, string> };
 type Combo = { qty: string; unitPrice: string };
-type Review = { name: string; rating: string; text: string; images: string };
+type Review = { name: string; rating: string; text: string; images: string; avatar: string };
 
 type Product = {
   id?: string;
@@ -19,7 +19,7 @@ type Product = {
   video?: string | null;
   attributes?: { name: string; values: string[]; images?: Record<string, string> }[];
   variants?: { qty: number; unitPrice?: number; price?: number; unit?: string }[];
-  reviews?: { name: string; rating: number; text: string; images?: string[] }[];
+  reviews?: { name: string; rating: number; text: string; images?: string[]; avatar?: string }[];
   active?: boolean;
 };
 
@@ -45,7 +45,7 @@ export default function ProductForm({ product }: { product?: Product }) {
   );
   const [reviews, setReviews] = useState<Review[]>(
     product?.reviews?.length
-      ? product.reviews.map((r) => ({ name: r.name, rating: String(r.rating), text: r.text, images: (r.images || []).join(", ") }))
+      ? product.reviews.map((r) => ({ name: r.name, rating: String(r.rating), text: r.text, images: (r.images || []).join(", "), avatar: r.avatar || "" }))
       : []
   );
 
@@ -114,7 +114,8 @@ export default function ProductForm({ product }: { product?: Product }) {
           name: r.name.trim(),
           rating: Math.min(5, Math.max(1, Number(r.rating) || 5)),
           text: r.text.trim(),
-          images: r.images.split(",").map((v) => v.trim()).filter(Boolean)
+          images: r.images.split(",").map((v) => v.trim()).filter(Boolean),
+          ...(r.avatar.trim() ? { avatar: r.avatar.trim() } : {})
         }))
         .filter((r) => r.name && r.text)
     };
@@ -300,6 +301,12 @@ export default function ProductForm({ product }: { product?: Product }) {
               />
             </div>
           </div>
+          <label>Ảnh đại diện (không bắt buộc — để trống sẽ tự tạo chữ cái đầu của tên)</label>
+          <input
+            value={r.avatar}
+            onChange={(e) => updateReview(i, "avatar", e.target.value)}
+            placeholder="https://i.postimg.cc/avatar-khach.jpg"
+          />
           <label>Nội dung đánh giá</label>
           <textarea rows={2} value={r.text} onChange={(e) => updateReview(i, "text", e.target.value)} placeholder="Hàng đúng mô tả, giao nhanh..." />
           <label>Ảnh khách gửi (không bắt buộc, cách nhau bằng dấu phẩy)</label>
@@ -316,7 +323,7 @@ export default function ProductForm({ product }: { product?: Product }) {
       <button
         type="button"
         className="btn btn-outline"
-        onClick={() => setReviews((prev) => [...prev, { name: "", rating: "5", text: "", images: "" }])}
+        onClick={() => setReviews((prev) => [...prev, { name: "", rating: "5", text: "", images: "", avatar: "" }])}
       >
         + Thêm đánh giá thật
       </button>

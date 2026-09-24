@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-type Review = { name: string; rating: number; text: string; images?: string[] };
+type Review = { name: string; rating: number; text: string; images?: string[]; avatar?: string };
 
 const PER_PAGE = 5;
 
@@ -11,6 +11,33 @@ function Stars({ n }: { n: number }) {
     <span className="stars">
       {"★★★★★".slice(0, n)}
       <span style={{ color: "var(--line)" }}>{"★★★★★".slice(n)}</span>
+    </span>
+  );
+}
+
+const AVATAR_COLORS = ["#b4342f", "#d9822b", "#2e9143", "#2a7ab8", "#7b4fb0", "#c2477a", "#3f8f8f", "#8a6d3b"];
+
+/** Chữ cái đầu của TÊN (từ cuối), vd "Chị Lan" -> "L", "Hùng Dũng" -> "D". */
+function initialOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const last = words[words.length - 1] || "?";
+  return Array.from(last)[0]?.toLocaleUpperCase("vi") || "?";
+}
+
+function colorOf(name: string): string {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.codePointAt(0)!) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+function Avatar({ name, src }: { name: string; src?: string }) {
+  const [broken, setBroken] = useState(false);
+  if (src && !broken) {
+    return <img className="avatar" src={src} alt="" onError={() => setBroken(true)} />;
+  }
+  return (
+    <span className="avatar avatar-letter" style={{ background: colorOf(name) }} aria-hidden="true">
+      {initialOf(name)}
     </span>
   );
 }
@@ -43,7 +70,10 @@ export default function Reviews({ reviews }: { reviews: Review[] }) {
       {visible.map((r, i) => (
         <div className="review-card" key={start + i}>
           <div className="review-head">
-            <b>{r.name}</b>
+            <span className="review-user">
+              <Avatar name={r.name} src={r.avatar} />
+              <b>{r.name}</b>
+            </span>
             <Stars n={r.rating} />
           </div>
           <p>{r.text}</p>
