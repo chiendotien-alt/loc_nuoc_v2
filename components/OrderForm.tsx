@@ -14,7 +14,7 @@ import {
   type Variant
 } from "@/lib/pricing";
 
-type Attribute = { name: string; values: string[] };
+type Attribute = { name: string; values: string[]; images?: Record<string, string> };
 
 function formatPrice(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
@@ -189,16 +189,38 @@ export default function OrderForm({
 
           {hasAttrs && (
             <div className="row" style={{ flexWrap: "wrap" }}>
-              {attributes.map((a) => (
-                <div key={a.name}>
-                  <label>{a.name}</label>
-                  <select value={line.attrs[a.name] || ""} onChange={(e) => setLineAttr(i, a.name, e.target.value)} required>
-                    {a.values.map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+              {attributes.map((a) => {
+                const hasImages = a.values.some((v) => a.images?.[v]);
+                const current = line.attrs[a.name] || "";
+                return (
+                  <div key={a.name} style={hasImages ? { flex: "1 1 100%" } : undefined}>
+                    <label>{a.name}</label>
+                    {hasImages ? (
+                      <div className="swatch-list" role="radiogroup" aria-label={a.name}>
+                        {a.values.map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            role="radio"
+                            aria-checked={current === v}
+                            className={"swatch" + (current === v ? " swatch-on" : "")}
+                            onClick={() => setLineAttr(i, a.name, v)}
+                          >
+                            {a.images?.[v] && <img src={a.images[v]} alt="" />}
+                            <span>{v}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <select value={current} onChange={(e) => setLineAttr(i, a.name, e.target.value)} required>
+                        {a.values.map((v) => (
+                          <option key={v}>{v}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 

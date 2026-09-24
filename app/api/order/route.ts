@@ -12,7 +12,7 @@ import {
   type Variant
 } from "@/lib/pricing";
 
-type Attribute = { name: string; values: string[] };
+type Attribute = { name: string; values: string[]; images?: Record<string, string> };
 
 function generateOrderCode() {
   const now = new Date();

@@ -38,7 +38,6 @@ export default function Reviews({ reviews }: { reviews: Review[] }) {
       <div className="review-summary">
         <b>{avg.toFixed(1)}</b>
         <Stars n={Math.round(avg)} />
-        <span className="note" style={{ margin: 0 }}>({reviews.length} đánh giá)</span>
       </div>
 
       {visible.map((r, i) => (

@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-type Attribute = { name: string; values: string[] };
+type Attribute = { name: string; values: string[]; images?: Record<string, string> };
 type Variant = { qty: number; unitPrice?: number; price?: number };
 type Review = { name: string; rating: number; text: string; images?: string[] };
 

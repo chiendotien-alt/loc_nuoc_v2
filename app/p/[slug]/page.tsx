@@ -10,7 +10,7 @@ import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-type Attribute = { name: string; values: string[] };
+type Attribute = { name: string; values: string[]; images?: Record<string, string> };
 type Review = { name: string; rating: number; text: string; images?: string[] };
 
 function formatPrice(n: number) {

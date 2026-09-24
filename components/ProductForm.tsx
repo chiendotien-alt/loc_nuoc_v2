@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUnit, DEFAULT_UNIT } from "@/lib/pricing";
 
-type Attribute = { name: string; values: string };
+type Attribute = { name: string; values: string; images: Record<string, string> };
 type Combo = { qty: string; unitPrice: string };
 type Review = { name: string; rating: string; text: string; images: string };
 
@@ -17,7 +17,7 @@ type Product = {
   description?: string;
   images?: string[];
   video?: string | null;
-  attributes?: { name: string; values: string[] }[];
+  attributes?: { name: string; values: string[]; images?: Record<string, string> }[];
   variants?: { qty: number; unitPrice?: number; price?: number; unit?: string }[];
   reviews?: { name: string; rating: number; text: string; images?: string[] }[];
   active?: boolean;
@@ -31,7 +31,7 @@ export default function ProductForm({ product }: { product?: Product }) {
 
   const [attrs, setAttrs] = useState<Attribute[]>(
     product?.attributes?.length
-      ? product.attributes.map((a) => ({ name: a.name, values: a.values.join(", ") }))
+      ? product.attributes.map((a) => ({ name: a.name, values: a.values.join(", "), images: a.images || {} }))
       : []
   );
   const [unit, setUnit] = useState<string>(getUnit(product?.variants));
@@ -58,6 +58,11 @@ export default function ProductForm({ product }: { product?: Product }) {
 
   function updateAttr(i: number, field: "name" | "values", value: string) {
     setAttrs((prev) => prev.map((a, idx) => (idx === i ? { ...a, [field]: value } : a)));
+  }
+  function setAttrImage(i: number, value: string, url: string) {
+    setAttrs((prev) =>
+      prev.map((a, idx) => (idx === i ? { ...a, images: { ...a.images, [value]: url } } : a))
+    );
   }
   function removeAttr(i: number) {
     setAttrs((prev) => prev.filter((_, idx) => idx !== i));
@@ -89,7 +94,14 @@ export default function ProductForm({ product }: { product?: Product }) {
       // @ts-ignore
       active: form.active.checked,
       attributes: attrs
-        .map((a) => ({ name: a.name.trim(), values: a.values.split(",").map((v) => v.trim()).filter(Boolean) }))
+        .map((a) => {
+          const values = a.values.split(",").map((v) => v.trim()).filter(Boolean);
+          // chỉ giữ ảnh của những giá trị còn tồn tại
+          const images = Object.fromEntries(
+            values.filter((v) => a.images[v]?.trim()).map((v) => [v, a.images[v].trim()])
+          );
+          return Object.keys(images).length > 0 ? { name: a.name.trim(), values, images } : { name: a.name.trim(), values };
+        })
         .filter((a) => a.name && a.values.length > 0),
       variants: combos
         .map((c) => ({ qty: Math.floor(Number(c.qty)), unitPrice: Number(c.unitPrice) }))
@@ -178,7 +190,8 @@ export default function ProductForm({ product }: { product?: Product }) {
         Tự đặt tên thuộc tính (Màu, Kích thước, Loại vải...), khách sẽ chọn 1 giá trị mỗi thuộc tính khi đặt hàng.
       </p>
       {attrs.map((a, i) => (
-        <div key={i} className="row" style={{ alignItems: "flex-end" }}>
+        <div key={i}>
+        <div className="row" style={{ alignItems: "flex-end" }}>
           <div>
             <label>Tên thuộc tính</label>
             <input value={a.name} onChange={(e) => updateAttr(i, "name", e.target.value)} placeholder="Màu sắc" />
@@ -191,11 +204,33 @@ export default function ProductForm({ product }: { product?: Product }) {
             Xóa
           </button>
         </div>
+        {a.values.split(",").map((v) => v.trim()).filter(Boolean).length > 0 && (
+          <div style={{ margin: "-6px 0 14px", padding: 10, border: "1px dashed var(--line)", borderRadius: 8 }}>
+            <p className="note" style={{ textAlign: "left", margin: "0 0 6px" }}>
+              Ảnh nhỏ cho từng giá trị (không bắt buộc). Có ảnh thì khách bấm chọn theo ảnh thay vì danh sách thả xuống.
+            </p>
+            {a.values.split(",").map((v) => v.trim()).filter(Boolean).map((v) => (
+              <div key={v} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ flex: "0 0 90px", fontSize: 13, fontWeight: 700 }}>{v}</span>
+                <input
+                  value={a.images[v] || ""}
+                  onChange={(e) => setAttrImage(i, v, e.target.value)}
+                  placeholder="https://i.postimg.cc/anh-mau.jpg"
+                  style={{ padding: "8px 10px" }}
+                />
+                {a.images[v] && (
+                  <img src={a.images[v]} alt="" style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 6 }} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        </div>
       ))}
       <button
         type="button"
         className="btn btn-outline"
-        onClick={() => setAttrs((prev) => [...prev, { name: "", values: "" }])}
+        onClick={() => setAttrs((prev) => [...prev, { name: "", values: "", images: {} }])}
       >
         + Thêm thuộc tính
       </button>
