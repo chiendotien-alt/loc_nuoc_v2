@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     if (!d.productId) return err(400, "missing_fields", "Thiếu thông tin đơn hàng.");
 
     const customer = validateCustomer({ name: d.name, phone: d.phone, address: d.address });
-    if (!customer.ok) return err(400, "invalid_customer", customer.message);
+    if (customer.ok === false) return err(400, "invalid_customer", customer.message);
     const { name, phone, address } = customer;
 
     if (blockedPhones().has(phone)) {
