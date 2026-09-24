@@ -1,12 +1,10 @@
 /**
  * Gửi sự kiện lên Meta Pixel. Chỉ gửi tên sự kiện + giá trị đơn + mã sản phẩm,
  * TUYỆT ĐỐI không gửi tên, số điện thoại, địa chỉ của khách.
- * Chưa cấu hình NEXT_PUBLIC_FB_PIXEL_ID thì mọi hàm ở đây không làm gì.
+ * Chưa cấu hình PIXEL_ID thì Pixel không được tải, hàm này thử chờ vài giây rồi tự bỏ qua.
  */
-export const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "";
-
 export function pixelTrack(event: string, params?: Record<string, unknown>, eventId?: string) {
-  if (!PIXEL_ID || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
 
   // Mã Pixel tải sau khi trang hiện ra, nên thử lại tối đa ~5 giây nếu chưa sẵn sàng
   let tries = 0;

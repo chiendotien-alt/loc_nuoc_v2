@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi">
       <body>
-        <MetaPixel />
+        <MetaPixel pixelId={process.env.PIXEL_ID || process.env.NEXT_PUBLIC_FB_PIXEL_ID || ""} />
         {children}
       </body>
     </html>
