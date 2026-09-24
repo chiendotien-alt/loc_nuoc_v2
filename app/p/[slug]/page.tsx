@@ -75,9 +75,14 @@ export default async function ProductPage({ params }: { params: { slug: string }
         unit={unit}
       />
 
-      <a href="#dathang" className="cta">
-        ĐẶT HÀNG NGAY
-      </a>
+      <OrderForm
+        productId={product.id}
+        productName={product.name}
+        basePrice={product.price}
+        attributes={attributes}
+        variants={variants}
+        shopName={shopName}
+      />
 
       <ul className="trust">
         <li className="trust-title">Cam kết của shop</li>
@@ -124,23 +129,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
       <Reviews reviews={reviews} />
 
-      <h2 id="dathang">Đặt hàng</h2>
-      <OrderForm
-        productId={product.id}
-        productName={product.name}
-        basePrice={product.price}
-        attributes={attributes}
-        variants={variants}
-        shopName={shopName}
-      />
-
       <footer>{shopName}</footer>
-
-      <div className="bar">
-        <button type="submit" form="order-form" className="cta">
-          Mua ngay
-        </button>
-      </div>
 
       <ChatWidget productSlug={product.slug} productName={product.name} />
     </div>

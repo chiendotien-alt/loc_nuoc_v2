@@ -52,6 +52,41 @@ export default function OrderForm({
   }, []);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  // false = chỉ hiện phần chọn loại/số lượng; true = đã bấm "Đặt hàng ngay", hiện ô điền thông tin
+  const [showInfo, setShowInfo] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const infoRef = useRef<HTMLDivElement>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
+
+  // Phiếu xác nhận hiện lên thì cuộn tới để khách thấy ngay
+  useEffect(() => {
+    if (receipt) receiptRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [receipt]);
+
+  function trackCheckoutOnce() {
+    if (checkoutSentRef.current) return;
+    checkoutSentRef.current = true;
+    pixelTrack("InitiateCheckout", {
+      value: pricing.total,
+      currency: "VND",
+      content_ids: [productId],
+      content_type: "product",
+      num_items: totalQty
+    });
+  }
+
+  function revealInfo() {
+    setShowInfo(true);
+    trackCheckoutOnce();
+    // đợi ô thông tin hiện ra rồi cuộn tới
+    setTimeout(() => infoRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+  }
+
+  // Thanh "Mua ngay" cố định: chưa hiện thông tin thì mở ra, đã hiện rồi thì gửi đơn
+  function handleBarClick() {
+    if (!showInfo) revealInfo();
+    else formRef.current?.requestSubmit();
+  }
   const [lines, setLines] = useState<OrderLine[]>([{ attrs: defaultAttrs(), qty: 1 }]);
 
   const totalQty = lines.reduce((s, l) => s + l.qty, 0);
@@ -90,6 +125,11 @@ export default function OrderForm({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Bấm Enter khi chưa hiện ô thông tin: mở ô thông tin thay vì gửi
+    if (!showInfo) {
+      revealInfo();
+      return;
+    }
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSending(true);
@@ -166,7 +206,7 @@ export default function OrderForm({
 
   if (receipt) {
     return (
-      <div>
+      <div ref={receiptRef} style={{ scrollMarginTop: 12 }}>
         <div style={{ background: "#e8f5e9", border: "1px solid #a5d6a7", borderRadius: 8, padding: 14, textAlign: "center", marginBottom: 14 }}>
           <b>Đặt hàng thành công!</b>
           <p style={{ margin: 0 }}>Shop sẽ gọi xác nhận trong hôm nay.</p>
@@ -177,21 +217,7 @@ export default function OrderForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      id="order-form"
-      onFocusCapture={() => {
-        if (checkoutSentRef.current) return;
-        checkoutSentRef.current = true;
-        pixelTrack("InitiateCheckout", {
-          value: pricing.total,
-          currency: "VND",
-          content_ids: [productId],
-          content_type: "product",
-          num_items: totalQty
-        });
-      }}
-    >
+    <form ref={formRef} onSubmit={handleSubmit} id="dathang" style={{ scrollMarginTop: 12 }}>
       <label style={{ marginTop: 0 }}>{hasAttrs ? "Chọn loại & số lượng *" : "Số lượng *"}</label>
 
       {hasTiers && (
@@ -314,47 +340,64 @@ export default function OrderForm({
         <b>{formatPrice(pricing.total)}</b>
       </div>
 
-      <label style={{ marginTop: 6, fontSize: 15 }}>Thông tin nhận hàng</label>
-      <label style={{ marginTop: 8 }}>Họ và tên *</label>
-      <input name="name" required maxLength={60} autoComplete="name" placeholder="Nguyễn Thị A" />
+      {!showInfo && (
+        <button type="button" className="cta" onClick={revealInfo} style={{ marginTop: 14 }}>
+          ĐẶT HÀNG NGAY
+        </button>
+      )}
 
-      <label>Số điện thoại *</label>
-      <input
-        name="phone"
-        type="tel"
-        required
-        maxLength={10}
-        inputMode="numeric"
-        autoComplete="tel"
-        pattern="0[35789][0-9]{8}"
-        title="Nhập 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09"
-        placeholder="0912345678"
-      />
+      {showInfo && (
+        <div ref={infoRef} style={{ scrollMarginTop: 12 }}>
+          <label style={{ marginTop: 14, fontSize: 15 }}>Thông tin nhận hàng</label>
+          <label style={{ marginTop: 8 }}>Họ và tên *</label>
+          <input name="name" required maxLength={60} autoComplete="name" placeholder="Nguyễn Thị A" />
 
-      <label>Địa chỉ nhận hàng *</label>
-      <textarea
-        name="address"
-        rows={2}
-        required
-        minLength={10}
-        maxLength={300}
-        autoComplete="street-address"
-        placeholder="Số nhà, xã/phường, quận/huyện, tỉnh"
-      />
+          <label>Số điện thoại *</label>
+          <input
+            name="phone"
+            type="tel"
+            required
+            maxLength={10}
+            inputMode="numeric"
+            autoComplete="tel"
+            pattern="0[35789][0-9]{8}"
+            title="Nhập 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09"
+            placeholder="0912345678"
+          />
 
-      {/* Ô bẫy bot: người thật không thấy và không điền */}
-      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
-        <label>
-          Để trống
-          <input name="hp_check" tabIndex={-1} autoComplete="off" />
-        </label>
+          <label>Địa chỉ nhận hàng *</label>
+          <textarea
+            name="address"
+            rows={2}
+            required
+            minLength={10}
+            maxLength={300}
+            autoComplete="street-address"
+            placeholder="Số nhà, xã/phường, quận/huyện, tỉnh"
+          />
+
+          {/* Ô bẫy bot: người thật không thấy và không điền */}
+          <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
+            <label>
+              Để trống
+              <input name="hp_check" tabIndex={-1} autoComplete="off" />
+            </label>
+          </div>
+
+          <button type="submit" className="cta" disabled={sending} style={{ marginTop: 14 }}>
+            {sending ? "Đang gửi..." : "XÁC NHẬN ĐẶT HÀNG"}
+          </button>
+          {error && <p className="note" style={{ color: "#c62828" }}>{error}</p>}
+          <p className="note">Thanh toán khi nhận hàng · Shop gọi xác nhận trước khi giao.</p>
+        </div>
+      )}
+
+      {/* Thanh cố định phía dưới màn hình */}
+      <div className="bar">
+        <button type="button" className="cta" onClick={handleBarClick} disabled={sending}>
+          {sending ? "Đang gửi..." : "Mua ngay"}
+        </button>
       </div>
-
-      <button type="submit" className="cta" disabled={sending}>
-        {sending ? "Đang gửi..." : "Mua ngay"}
-      </button>
-      {error && <p className="note" style={{ color: "#c62828" }}>{error}</p>}
-      <p className="note">Thanh toán khi nhận hàng · Shop gọi xác nhận trước khi giao.</p>
     </form>
   );
 }
