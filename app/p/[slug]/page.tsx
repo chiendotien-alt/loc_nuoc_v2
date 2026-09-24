@@ -5,7 +5,6 @@ import ChatWidget from "@/components/ChatWidget";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
 import PriceHero from "@/components/PriceHero";
-import MessengerButton from "@/components/MessengerButton";
 import { normalizeTiers, getUnit, type Variant } from "@/lib/pricing";
 import type { Metadata } from "next";
 
@@ -126,7 +125,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
         </button>
       </div>
 
-      <MessengerButton />
       <ChatWidget productSlug={product.slug} productName={product.name} />
     </div>
   );
