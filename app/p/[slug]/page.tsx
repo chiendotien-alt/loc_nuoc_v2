@@ -6,6 +6,7 @@ import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
 import PriceHero from "@/components/PriceHero";
 import PixelViewContent from "@/components/PixelViewContent";
+import ProductTabs from "@/components/ProductTabs";
 import { normalizeTiers, getUnit, type Variant } from "@/lib/pricing";
 import type { Metadata } from "next";
 
@@ -84,50 +85,59 @@ export default async function ProductPage({ params }: { params: { slug: string }
         shopName={shopName}
       />
 
-      <ul className="trust">
-        <li className="trust-title">Cam kết của shop</li>
-        <li>Được <b>xem hàng</b> trước khi thanh toán</li>
-        <li><b>Đổi hàng miễn phí</b> nếu lỗi trong 7 ngày</li>
-        <li><b>Miễn phí giao hàng</b> toàn quốc</li>
-        <li><b>Hoàn tiền</b> nếu hàng không giống mô tả</li>
-      </ul>
+      <ProductTabs
+        reviewCount={reviews.length}
+        info={
+          <>
+            <ul className="trust">
+              <li className="trust-title">Cam kết của shop</li>
+              <li>Được <b>xem hàng</b> trước khi thanh toán</li>
+              <li><b>Đổi hàng miễn phí</b> nếu lỗi trong 7 ngày</li>
+              <li><b>Miễn phí giao hàng</b> toàn quốc</li>
+              <li><b>Hoàn tiền</b> nếu hàng không giống mô tả</li>
+            </ul>
 
-      <div className="policy-grid">
-        <div className="policy-card">
-          <div className="policy-icon">🔄</div>
-          <b>Hỗ trợ đổi hàng</b>
-          <span>Đổi hàng nếu lỗi trong vòng 7 ngày</span>
-        </div>
-        <div className="policy-card">
-          <div className="policy-icon">✅</div>
-          <b>Hàng chính hãng</b>
-          <span>Cam kết chất lượng sản phẩm</span>
-        </div>
-        <div className="policy-card">
-          <div className="policy-icon">🚚</div>
-          <b>Freeship toàn quốc</b>
-          <span>Kiểm tra hàng trước khi thanh toán</span>
-        </div>
-      </div>
+            <div className="policy-grid">
+              <div className="policy-card">
+                <div className="policy-icon">🔄</div>
+                <b>Hỗ trợ đổi hàng</b>
+                <span>Đổi hàng nếu lỗi trong vòng 7 ngày</span>
+              </div>
+              <div className="policy-card">
+                <div className="policy-icon">✅</div>
+                <b>Hàng chính hãng</b>
+                <span>Cam kết chất lượng sản phẩm</span>
+              </div>
+              <div className="policy-card">
+                <div className="policy-icon">🚚</div>
+                <b>Freeship toàn quốc</b>
+                <span>Kiểm tra hàng trước khi thanh toán</span>
+              </div>
+            </div>
+          </>
+        }
+        description={
+          <>
+            <h2 style={{ marginTop: 0 }}>Mô tả sản phẩm</h2>
+            <p style={{ whiteSpace: "pre-line" }}>{product.description}</p>
 
-      <h2>Mô tả sản phẩm</h2>
-      <p style={{ whiteSpace: "pre-line" }}>{product.description}</p>
-
-      {product.video && (
-        <>
-          <h2>Video giới thiệu</h2>
-          <video
-            src={product.video}
-            controls
-            playsInline
-            preload="metadata"
-            poster={product.images[0]}
-            style={{ width: "100%", borderRadius: 12, display: "block", background: "#000" }}
-          />
-        </>
-      )}
-
-      <Reviews reviews={reviews} />
+            {product.video && (
+              <>
+                <h2>Video giới thiệu</h2>
+                <video
+                  src={product.video}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={product.images[0]}
+                  style={{ width: "100%", borderRadius: 12, display: "block", background: "#000" }}
+                />
+              </>
+            )}
+          </>
+        }
+        reviews={<Reviews reviews={reviews} />}
+      />
 
       <footer>{shopName}</footer>
 
