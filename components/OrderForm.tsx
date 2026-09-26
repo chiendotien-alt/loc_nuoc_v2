@@ -8,6 +8,7 @@ import {
   normalizeTiers,
   tierRangeLabel,
   getUnit,
+  getDisplayMode,
   mergeLines,
   MAX_LINE_QTY,
   MAX_TOTAL_QTY,
@@ -108,6 +109,13 @@ export default function OrderForm({
   const unit = getUnit(variants);
   const hasTiers = tiers.length > 1;
   const retailPrice = tiers[0].unitPrice;
+  const displayMode = getDisplayMode(variants);
+  const isComboMode = hasTiers && displayMode === "combo";
+
+  // Combo mode: bấm 1 ô là chọn thẳng số lượng đó, gộp về 1 dòng duy nhất
+  function selectCombo(qty: number) {
+    setLines((prev) => [{ attrs: prev[0]?.attrs || defaultAttrs(), qty }]);
+  }
 
   function updateLine(i: number, patch: Partial<OrderLine>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -237,32 +245,75 @@ export default function OrderForm({
     <form ref={formRef} onSubmit={handleSubmit} id="dathang" style={{ scrollMarginTop: 12 }}>
       <label style={{ marginTop: 0 }}>{hasAttrs ? "Chọn loại & số lượng *" : "Số lượng *"}</label>
 
-      {hasTiers && (
+      {isComboMode ? (
         <div className="tier-box">
-          <div className="tier-title">Mua càng nhiều, giá mỗi {unit} càng rẻ</div>
-          <div className="tier-strip">
-            {tiers.map((t, i) => {
-              const active = totalQty > 0 && t.qty === pricing.tierQty;
-              const off = Math.round((1 - t.unitPrice / retailPrice) * 100);
-              return (
-                <div key={t.qty} className={"tier-item" + (active ? " tier-active" : "")}>
-                  <span className="tier-range">{tierRangeLabel(tiers, i, unit)}</span>
-                  <b className="tier-price">{formatPrice(t.unitPrice)}</b>
-                  <span className="tier-unit">/{unit}</span>
-                  {off > 0 && <span className="tier-off">Giảm {off}%</span>}
-                </div>
-              );
-            })}
-          </div>
-          {totalQty < 1 ? null : pricing.nextTier ? (
-            <p className="tier-hint">
-              Mua thêm <b>{pricing.nextTier.needMore} {unit}</b> để giảm còn{" "}
-              <b>{formatPrice(pricing.nextTier.unitPrice)}/{unit}</b>
-            </p>
-          ) : (
-            <p className="tier-hint tier-hint-ok">Bạn đang được giá tốt nhất</p>
-          )}
+          <div className="tier-title">Chọn số lượng muốn mua</div>
+          {tiers.map((t) => {
+            const totalForTier = t.unitPrice * t.qty;
+            const totalRetail = retailPrice * t.qty;
+            const savings = totalRetail - totalForTier;
+            const off = Math.round((1 - t.unitPrice / retailPrice) * 100);
+            const active = totalQty === t.qty;
+            return (
+              <button
+                key={t.qty}
+                type="button"
+                className={"combo-option" + (active ? " combo-option-active" : "")}
+                onClick={() => selectCombo(t.qty)}
+                style={{ width: "100%", marginBottom: 8 }}
+              >
+                <span style={{ textAlign: "left" }}>
+                  <b style={{ fontSize: 15 }}>
+                    Mua {t.qty} {unit}
+                  </b>
+                  {off > 0 && (
+                    <span style={{ display: "block", fontSize: 12.5, color: "#2e7d32", fontWeight: 600, marginTop: 2 }}>
+                      Tiết kiệm {formatPrice(savings)} ({off}%)
+                    </span>
+                  )}
+                </span>
+                <span style={{ textAlign: "right" }}>
+                  <b style={{ fontSize: 17, color: active ? "var(--accent)" : "var(--fg)" }}>
+                    {formatPrice(totalForTier)}
+                  </b>
+                  {t.qty > 1 && (
+                    <span style={{ display: "block", fontSize: 11.5, color: "var(--muted)" }}>
+                      {formatPrice(t.unitPrice)}/{unit}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
+      ) : (
+        hasTiers && (
+          <div className="tier-box">
+            <div className="tier-title">Mua càng nhiều, giá mỗi {unit} càng rẻ</div>
+            <div className="tier-strip">
+              {tiers.map((t, i) => {
+                const active = totalQty > 0 && t.qty === pricing.tierQty;
+                const off = Math.round((1 - t.unitPrice / retailPrice) * 100);
+                return (
+                  <div key={t.qty} className={"tier-item" + (active ? " tier-active" : "")}>
+                    <span className="tier-range">{tierRangeLabel(tiers, i, unit)}</span>
+                    <b className="tier-price">{formatPrice(t.unitPrice)}</b>
+                    <span className="tier-unit">/{unit}</span>
+                    {off > 0 && <span className="tier-off">Giảm {off}%</span>}
+                  </div>
+                );
+              })}
+            </div>
+            {totalQty < 1 ? null : pricing.nextTier ? (
+              <p className="tier-hint">
+                Mua thêm <b>{pricing.nextTier.needMore} {unit}</b> để giảm còn{" "}
+                <b>{formatPrice(pricing.nextTier.unitPrice)}/{unit}</b>
+              </p>
+            ) : (
+              <p className="tier-hint tier-hint-ok">Bạn đang được giá tốt nhất</p>
+            )}
+          </div>
+        )
       )}
 
       {lines.map((line, i) => (
@@ -315,30 +366,32 @@ export default function OrderForm({
             </div>
           )}
 
-          <div className="qty-row">
-            <span>Số lượng</span>
-            <div className="qty-stepper">
-              <button type="button" onClick={() => setLineQty(i, line.qty - 1)} disabled={line.qty <= 0} aria-label="Giảm">
-                −
-              </button>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={MAX_LINE_QTY}
-                value={line.qty}
-                onChange={(e) => setLineQty(i, Number(e.target.value))}
-                aria-label="Số lượng"
-              />
-              <button type="button" onClick={() => setLineQty(i, line.qty + 1)} disabled={totalQty >= MAX_TOTAL_QTY || line.qty >= MAX_LINE_QTY} aria-label="Tăng">
-                +
-              </button>
+          {!isComboMode && (
+            <div className="qty-row">
+              <span>Số lượng</span>
+              <div className="qty-stepper">
+                <button type="button" onClick={() => setLineQty(i, line.qty - 1)} disabled={line.qty <= 0} aria-label="Giảm">
+                  −
+                </button>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={MAX_LINE_QTY}
+                  value={line.qty}
+                  onChange={(e) => setLineQty(i, Number(e.target.value))}
+                  aria-label="Số lượng"
+                />
+                <button type="button" onClick={() => setLineQty(i, line.qty + 1)} disabled={totalQty >= MAX_TOTAL_QTY || line.qty >= MAX_LINE_QTY} aria-label="Tăng">
+                  +
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ))}
 
-      {hasAttrs && (
+      {hasAttrs && !isComboMode && (
         <button type="button" className="btn btn-outline add-line" onClick={addLine} disabled={totalQty >= MAX_TOTAL_QTY}>
           + Thêm loại khác
         </button>

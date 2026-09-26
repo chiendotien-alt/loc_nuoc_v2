@@ -2,7 +2,8 @@
  * Mốc giá theo số lượng: từ `qty` cái trở lên, MỖI cái tính `unitPrice`.
  * (`price` chỉ còn để đọc dữ liệu cũ dạng "giá cả gói combo".)
  */
-export type Variant = { qty: number; unitPrice?: number; price?: number; unit?: string };
+export type Variant = { qty: number; unitPrice?: number; price?: number; unit?: string; mode?: string };
+export type DisplayMode = "stepper" | "combo";
 export type Tier = { qty: number; unitPrice: number };
 export type OrderLine = { attrs: Record<string, string>; qty: number };
 export type PricingResult = {
@@ -29,6 +30,18 @@ export const MAX_TOTAL_QTY = 200;
 export function getUnit(variants: Variant[] | null | undefined): string {
   const found = (variants || []).find((v) => Number(v?.qty) === 0 && typeof v?.unit === "string" && v.unit.trim());
   return found ? found.unit!.trim() : DEFAULT_UNIT;
+}
+
+/**
+ * Kiểu hiển thị lựa chọn mua hàng, do admin chọn cho từng sản phẩm. Lưu chung trong mảng
+ * `variants` dưới dạng phần tử đặc biệt `{ qty: -1, mode: "combo" }` để không cần đổi database
+ * (giống cách lưu tên đơn vị ở trên). Không có phần tử này = mặc định "stepper" (kiểu cũ).
+ * - "stepper": dải mốc giá tham khảo + nút tăng/giảm số lượng (kiểu cũ).
+ * - "combo": danh sách ô "Mua 1 / Mua 2 / Mua 3..." bấm chọn thẳng, không cần bấm +/-.
+ */
+export function getDisplayMode(variants: Variant[] | null | undefined): DisplayMode {
+  const found = (variants || []).find((v) => Number(v?.qty) === -1 && v?.mode === "combo");
+  return found ? "combo" : "stepper";
 }
 
 /**

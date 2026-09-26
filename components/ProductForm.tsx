@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getUnit, DEFAULT_UNIT } from "@/lib/pricing";
+import { getUnit, getDisplayMode, DEFAULT_UNIT, type DisplayMode } from "@/lib/pricing";
 
 type Attribute = { name: string; values: string; images: Record<string, string> };
 type Combo = { qty: string; unitPrice: string };
@@ -35,6 +35,7 @@ export default function ProductForm({ product }: { product?: Product }) {
       : []
   );
   const [unit, setUnit] = useState<string>(getUnit(product?.variants));
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(getDisplayMode(product?.variants));
   const [combos, setCombos] = useState<Combo[]>(
     product?.variants?.some((v) => v.qty >= 1)
       ? product.variants.filter((v) => v.qty >= 1).map((v) => ({
@@ -108,7 +109,9 @@ export default function ProductForm({ product }: { product?: Product }) {
         .filter((c) => c.qty > 1 && c.unitPrice > 0)
         .sort((a, b) => a.qty - b.qty)
         // phần tử đặc biệt lưu tên đơn vị (qty = 0), xem getUnit trong lib/pricing.ts
-        .concat(unit.trim() && unit.trim() !== DEFAULT_UNIT ? [{ qty: 0, unitPrice: 0, unit: unit.trim() } as any] : []),
+        .concat(unit.trim() && unit.trim() !== DEFAULT_UNIT ? [{ qty: 0, unitPrice: 0, unit: unit.trim() } as any] : [])
+        // phần tử đặc biệt lưu kiểu hiển thị (qty = -1), xem getDisplayMode trong lib/pricing.ts
+        .concat(displayMode === "combo" ? [{ qty: -1, unitPrice: 0, mode: "combo" } as any] : []),
       reviews: reviews
         .map((r) => ({
           name: r.name.trim(),
@@ -276,6 +279,61 @@ export default function ProductForm({ product }: { product?: Product }) {
       >
         + Thêm mốc giá
       </button>
+
+      {combos.length > 1 && (
+        <>
+          <label style={{ marginTop: 24 }}>Cách hiển thị lựa chọn mua hàng cho khách</label>
+          <p className="note" style={{ textAlign: "left", marginTop: 0 }}>
+            Áp dụng khi có từ 2 mốc giá trở lên. Chọn kiểu nào dễ hiểu hơn với khách của bạn.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 10, margin: 0,
+                border: "1.5px solid var(--line)", borderRadius: 10, padding: "10px 12px",
+                fontWeight: 400, cursor: "pointer"
+              }}
+            >
+              <input
+                type="radio"
+                name="displayModeChoice"
+                checked={displayMode === "stepper"}
+                onChange={() => setDisplayMode("stepper")}
+                style={{ width: "auto", marginTop: 3 }}
+              />
+              <span>
+                <b>Dải giá tham khảo + số lượng</b> (kiểu cũ)
+                <br />
+                <span className="note" style={{ margin: 0, textAlign: "left" }}>
+                  Khách tự bấm +/- để tăng số lượng, giá cập nhật theo mốc.
+                </span>
+              </span>
+            </label>
+            <label
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 10, margin: 0,
+                border: "1.5px solid var(--line)", borderRadius: 10, padding: "10px 12px",
+                fontWeight: 400, cursor: "pointer"
+              }}
+            >
+              <input
+                type="radio"
+                name="displayModeChoice"
+                checked={displayMode === "combo"}
+                onChange={() => setDisplayMode("combo")}
+                style={{ width: "auto", marginTop: 3 }}
+              />
+              <span>
+                <b>Combo chọn nhanh</b> (khuyên dùng)
+                <br />
+                <span className="note" style={{ margin: 0, textAlign: "left" }}>
+                  Hiện sẵn từng ô "Mua 1 / Mua 2 / Mua 3..." kèm giá, khách bấm chọn thẳng — dễ hiểu, đỡ phải tự tính.
+                </span>
+              </span>
+            </label>
+          </div>
+        </>
+      )}
 
       {/* Đánh giá thật */}
       <label style={{ marginTop: 24 }}>Đánh giá khách hàng (không bắt buộc)</label>
