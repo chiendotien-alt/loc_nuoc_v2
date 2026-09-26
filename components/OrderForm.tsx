@@ -248,7 +248,7 @@ export default function OrderForm({
       {isComboMode ? (
         <div className="tier-box">
           <div className="tier-title">Chọn số lượng muốn mua</div>
-          <div className="combo-strip">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {tiers.map((t) => {
               const totalForTier = t.unitPrice * t.qty;
               const totalRetail = retailPrice * t.qty;
@@ -259,28 +259,48 @@ export default function OrderForm({
                 <button
                   key={t.qty}
                   type="button"
-                  className={"combo-item" + (active ? " combo-item-active" : "")}
                   onClick={() => selectCombo(t.qty)}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 10,
+                    width: "100%",
+                    boxSizing: "border-box",
+                    border: active ? "2px solid #b4342f" : "2px solid #e9e4dc",
+                    borderRadius: 12,
+                    padding: "12px 16px",
+                    background: active ? "#fdf1f0" : "#fff",
+                    cursor: "pointer",
+                    font: "inherit",
+                    color: "inherit",
+                    textAlign: "left"
+                  }}
                 >
-                  <span className="combo-item-qty">
-                    Mua {t.qty} {unit}
+                  <span style={{ textAlign: "left" }}>
+                    <b style={{ display: "block", fontSize: 15 }}>
+                      Mua {t.qty} {unit}
+                    </b>
+                    {off > 0 && (
+                      <span style={{ display: "block", fontSize: 12.5, color: "#2e7d32", fontWeight: 600, marginTop: 2 }}>
+                        Tiết kiệm {formatPrice(savings)} ({off}%)
+                      </span>
+                    )}
                   </span>
-                  <b className="combo-item-price">{formatPrice(totalForTier)}</b>
-                  {off > 0 && <span className="combo-item-off">Giảm {off}%</span>}
+                  <span style={{ textAlign: "right", flexShrink: 0 }}>
+                    <b style={{ display: "block", fontSize: 17, color: active ? "#b4342f" : "#181818" }}>
+                      {formatPrice(totalForTier)}
+                    </b>
+                    {t.qty > 1 && (
+                      <span style={{ display: "block", fontSize: 11.5, color: "#767066" }}>
+                        {formatPrice(t.unitPrice)}/{unit}
+                      </span>
+                    )}
+                  </span>
                 </button>
               );
             })}
           </div>
-          {totalQty > 0 && (() => {
-            const activeTier = tiers.find((t) => t.qty === totalQty);
-            if (!activeTier) return null;
-            const savings = (retailPrice - activeTier.unitPrice) * activeTier.qty;
-            return savings > 0 ? (
-              <p className="tier-hint tier-hint-ok">
-                Bạn đang chọn: <b>Mua {activeTier.qty} {unit}</b> · tiết kiệm {formatPrice(savings)}
-              </p>
-            ) : null;
-          })()}
         </div>
       ) : (
         hasTiers && (
@@ -312,7 +332,8 @@ export default function OrderForm({
         )
       )}
 
-      {lines.map((line, i) => (
+      {(!isComboMode || hasAttrs) &&
+        lines.map((line, i) => (
         <div key={i} className="unit-card">
           {(hasAttrs || lines.length > 1) && (
             <div className="line-head">
