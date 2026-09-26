@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { appendOrderToSheet } from "@/lib/sheets";
+import { sendPurchaseCAPI } from "@/lib/capi";
 import { canonLines, createRateLimiter, normalizePhone, validateCustomer } from "@/lib/antispam";
 import {
   computePricing,
@@ -217,6 +218,21 @@ export async function POST(req: NextRequest) {
     } else {
       console.warn("Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID, bỏ qua thông báo Telegram.");
     }
+
+    // Gửi Purchase qua Conversion API (server-side), song song với Pixel trình duyệt.
+    // eventId dùng chung mã đơn `code` với Pixel để Facebook gộp 2 nguồn, tránh đếm trùng.
+    // Gọi bất đồng bộ, không chặn response trả về cho khách.
+    sendPurchaseCAPI({
+      eventId: code,
+      value: total,
+      currency: "VND",
+      contentIds: [d.productId],
+      contentName: product.name,
+      numItems: quantity,
+      phone,
+      clientIp: ip,
+      userAgent: req.headers.get("user-agent") || undefined
+    }).catch(() => {});
 
     try {
       await appendOrderToSheet([
